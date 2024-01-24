@@ -9,17 +9,23 @@ using PMM.Core.Interface;
 
 namespace PMM.Core.CoreClass
 {
-    public abstract class StreamCore<X, C>(Symbol symbol, KlineInterval interval) : IStreamCore, ICandleRepository<X, C> where X : DbContext, new() where C : OHLCV, new()
+    public abstract class StreamCore<X, C>() : IStreamCore, ICandleRepository<X, C> where X : DbContext, new() where C : OHLCV, new()
     {
         #region Public Property
-        public readonly Symbol Symbol = symbol;
-        public readonly KlineInterval Interval = interval;
         public readonly List<C> Candles = [];
         public readonly List<C> CandleAdders = [];
+        public Symbol Symbol { get => _symbol; set => _symbol = value; }
+        public KlineInterval Interval { get => _interval; set => _interval = value; }
+        public List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> OrderCallbackList { get => _orderCallbackList; }
         #endregion
 
         #region Private Property
+        private Symbol _symbol;
+        private KlineInterval _interval;
+        private readonly List<IStrategy> StrategyList = [];
         private readonly object LockObj = new();
+        private readonly List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> _orderCallbackList = [];
+
 
         // InitEvent
         private event Action Chain_PreStrategyInit = delegate { };
@@ -33,12 +39,7 @@ namespace PMM.Core.CoreClass
         private event Action<IBinanceStreamKline, OHLCV> Chain_ProcessWithDifferentCandle = delegate { };
         #endregion
 
-        #region Internal Property
-        internal List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> OrderCallbackList = [];
-        #endregion
-
-
-        #region Public Util
+        #region Public Method
         public bool AddedCandleExists()
         {
             // Remember the last online candle always be added into CandleAdders, so CandleAdders.Count > 0 always be true
@@ -48,14 +49,6 @@ namespace PMM.Core.CoreClass
         {
             return Symbol == symbol && Interval == interval;
         }
-        public (Symbol symbol, KlineInterval interval) GetIdentifier()
-        {
-            return (Symbol, Interval);
-        }
-        #endregion
-
-
-        #region Public Method
         public void AddCandles(IList<C> adder)
         {
             using X db = new();
@@ -88,7 +81,6 @@ namespace PMM.Core.CoreClass
         public abstract void PostStreamInit();
         #endregion
 
-
         #region Interface Implement
         public Action<IEnumerable<IBinanceKline>> OnGetBaseCandle() => (klines) =>
         {
@@ -118,18 +110,33 @@ namespace PMM.Core.CoreClass
                 }
             }
 
-            if (found == false) throw new Exception("Candle Data Needs Up-To-Date");
+            if (found == false) throw new Exception("Candle data needs Up-To-Date");
         };
 
-        public void AddStrategy(IStrategy strategy)
+        public void AddStrategy<S>()
+            where S : IStrategy, new()
         {
-            if (strategy.CheckIdentifier(Symbol, Interval))
+            foreach (var strategy in StrategyList)
+            {
+                if (strategy.GetType() == typeof(S)) throw new Exception($"{GetType()} already has {typeof(S)}");
+            }
+
+            S adder = new();
+            StrategyList.Add(adder);
+        }
+
+        public void BindStrategy()
+        {
+            foreach (var strategy in StrategyList)
             {
                 BindInitProcess(strategy);
                 BindOnlineProcess(strategy);
-                OrderCallbackList.Add(strategy.ProcessOnOrderUpdate());
+                Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? callback = strategy.ProcessOnOrderUpdate();
+                if (callback != null)
+                {
+                    OrderCallbackList.Add(callback);
+                }
             }
-            else throw new Exception("Symbol, Interval from stream differs with those from strategy");
         }
         public void ExecuteChain_PreStrategyInit()
         {
@@ -190,7 +197,7 @@ namespace PMM.Core.CoreClass
                         Volume = klines.Volume
                     };
 
-                    AddCandles([prevCandle]);
+                    Task.Run(()=> { AddCandles([prevCandle]); });
                 }
             }
 

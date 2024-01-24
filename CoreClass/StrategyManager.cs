@@ -55,26 +55,18 @@ namespace PMM.Core.CoreClass
         #endregion
 
         #region Public Method
-        public void AddStreamCore<X, C>(StreamCore<X, C> streamCore)
-            where X : DbContext, new()
-            where C : OHLCV, new()
-
+        public S AddStreamCore<S>(Symbol symbol, KlineInterval interval)
+            where S : IStreamCore, new()
         {
-            (Symbol symbol, KlineInterval interval) = streamCore.GetIdentifier();
             foreach (var core in _streamCoreList)
             {
                 if (core.Exists(symbol, interval)) throw new Exception($"Stream core with symbol: {symbol}, interval: {interval} already exists");
             }
 
-            _streamCoreList.Add(streamCore);
-            if (streamCore.OrderCallbackList.Count > 0)
-            {
-                foreach (var callback in streamCore.OrderCallbackList)
-                {
-                    if (ChainOnOrderUpdateExists == false) ChainOnOrderUpdateExists = true;
-                    Chain_OnOrderUpdate += callback;
-                }
-            }
+            S adder = new() { Symbol = symbol, Interval = interval};
+            _streamCoreList.Add(adder);
+
+            return adder;
         }
         public void Run(bool keepRunning = false)
         {
@@ -99,6 +91,21 @@ namespace PMM.Core.CoreClass
 
             throw new Exception($"No StreamCore with symbol: {symbol}, interval: {interval}");
         }
+        private void BindOrderUpdateProcess()
+        {
+            foreach (var core in _streamCoreList)
+            {
+                if (core.OrderCallbackList.Count > 0)
+                {
+                    foreach (var callback in core.OrderCallbackList)
+                    {
+                        if (ChainOnOrderUpdateExists == false) ChainOnOrderUpdateExists = true;
+                        Chain_OnOrderUpdate += callback;
+                    }
+                }
+
+            }
+        }
 
         private async Task Init()
         {
@@ -120,13 +127,14 @@ namespace PMM.Core.CoreClass
             var listenKey = await client.UsdFuturesApi.Account.StartUserStreamAsync();
             ListenKey = listenKey.Data;
 
+            BindOrderUpdateProcess();
+            
             foreach (var core in _streamCoreList)
             {
                 core.PreStreamInit();
                 core.ExecuteChain_PreStrategyInit();
                 
-                (Symbol symbol, KlineInterval interval) = core.GetIdentifier();
-                await Util.HandleRequest(() => client.UsdFuturesApi.ExchangeData.GetKlinesAsync(symbol.ToString(), interval, limit: BaseCandleCount), core.OnGetBaseCandle());                
+                await Util.HandleRequest(() => client.UsdFuturesApi.ExchangeData.GetKlinesAsync(core.Symbol.ToString(), core.Interval, limit: BaseCandleCount), core.OnGetBaseCandle());
 
                 if (core.AddedCandleExists()) 
                 {
@@ -141,6 +149,8 @@ namespace PMM.Core.CoreClass
 
                 core.PostStreamInit();
                 core.ExecuteChain_PostStrategyInit();
+
+
             }
         }
         private Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? OnOrderUpdate()
@@ -161,15 +171,14 @@ namespace PMM.Core.CoreClass
 
             foreach (var core in _streamCoreList)
             {
-                (Symbol symbol, KlineInterval interval) = core.GetIdentifier();
-                var coinSubs = await socketClient.UsdFuturesApi.SubscribeToKlineUpdatesAsync(symbol.ToString(), interval, core.OnGetStreamData());
+                var coinSubs = await socketClient.UsdFuturesApi.SubscribeToKlineUpdatesAsync(core.Symbol.ToString(), core.Interval, core.OnGetStreamData());
                 if (!coinSubs.Success)
                 {
-                    throw new Exception($"Subscribe for \"{symbol}\" is failed");
+                    throw new Exception($"Subscribe for \"{core.Symbol}\" is failed");
                 }
 
                 // TODO : ConnectionLost, ConnectionRestored
-                coinSubs.Data.ConnectionLost += () => throw new Exception($"Subscribe for \"{symbol}\" is disconnected");
+                coinSubs.Data.ConnectionLost += () => throw new Exception($"Subscribe for \"{core.Symbol}\" is disconnected");
             }
         }
         #endregion

@@ -1,20 +1,27 @@
 ﻿using Binance.Net.Enums;
 using Binance.Net.Interfaces;
+using Binance.Net.Objects.Models.Futures.Socket;
 using CryptoExchange.Net.Sockets;
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
 
 namespace PMM.Core.Interface
 {
-    internal interface IStreamCore
+    public interface IStreamCore
     {
+        #region Property
+        public Symbol Symbol { get; set; }
+        public KlineInterval Interval { get; set; }
+        public List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> OrderCallbackList { get; }
+        #endregion
         #region Util
-        (Symbol symbol, KlineInterval interval) GetIdentifier();
         bool Exists(Symbol symbol, KlineInterval interval);
         bool AddedCandleExists();
         #endregion
 
         #region Interface Declaration
+        void BindStrategy();
+        void AddStrategy<S>() where S : IStrategy, new();
         void PreStreamInit();
         void InitStreamWithoutAdditionalCandles();
         void InitStreamWithAdditionalCandles();

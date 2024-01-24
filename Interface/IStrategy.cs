@@ -41,12 +41,10 @@ namespace PMM.Core.Interface
         public void ProcessEnter(IBinanceStreamKline klines, OnlineSignal target);
         public void ProcessTakeProfit(IBinanceStreamKline klines, OnlineSignal target);
         public void ProcessLosscut(IBinanceStreamKline klines, OnlineSignal target);
-        public Action<DataEvent<BinanceFuturesStreamOrderUpdate>> ProcessOnOrderUpdate();
+        public Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? ProcessOnOrderUpdate();
     }
 
     public interface IStrategy : IInitProcess, IOnlineProcess, IOrderProcess
     {
-        public bool CheckIdentifier(Symbol symbol, KlineInterval interval);
     }
-
 }
