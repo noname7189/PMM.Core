@@ -13,11 +13,12 @@ using PMM.Core.Interface;
 
 namespace PMM.Core.CoreClass
 {
-    public class StrategyManagerOptions(string publicKey, string secretKey, Action<DataEvent<BinanceFuturesStreamAccountUpdate>>? onAccountUpdate, Action<DataEvent<BinanceStreamEvent>>? onListenKeyExpired, Action<BinanceFuturesAccountInfo>? onGetAccountInfo, int baseCandleCount = 1500)
+    public class StrategyManagerOptions(string publicKey, string secretKey, Action<DataEvent<BinanceFuturesStreamAccountUpdate>>? onAccountUpdate, Action<DataEvent<BinanceStreamEvent>>? onListenKeyExpired, Action<BinanceFuturesAccountInfo>? onGetAccountInfo, int baseCandleCount = 900, int initCandleCount = 1500)
     {
         public readonly string PublicKey = publicKey;
         public readonly string SecretKey = secretKey;
         public readonly int BaseCandleCount = baseCandleCount;
+        public readonly int InitCandleCount = initCandleCount;
         public readonly Action<DataEvent<BinanceFuturesStreamAccountUpdate>>? OnAccountUpdate = onAccountUpdate;
         public readonly Action<DataEvent<BinanceStreamEvent>>? OnListenKeyExpired = onListenKeyExpired;
         public readonly Action<BinanceFuturesAccountInfo>? OnGetAccountInfo = onGetAccountInfo;
@@ -27,43 +28,45 @@ namespace PMM.Core.CoreClass
         #region Singleton
         private StrategyManager() { }
         private static readonly StrategyManager instance = new();
-        public static StrategyManager Instance(StrategyManagerOptions options)
+        public static void Init(StrategyManagerOptions options)
         {
             instance.Initialized = true;
             instance.PublicKey = options.PublicKey;
             instance.SecretKey = options.SecretKey;
             instance.BaseCandleCount = options.BaseCandleCount;
+            instance.InitCandleCount = options.InitCandleCount;
             instance.OnAccountUpdate = options.OnAccountUpdate;
             instance.OnGetAccountInfo = options.OnGetAccountInfo ?? ((data) => { });
             instance.OnListenKeyExpired = options.OnListenKeyExpired ?? ((data) => { });
-            return instance;
         }
+
+        public static StrategyManager Instance { get { return instance; } }
         #endregion
+        internal int BaseCandleCount { get; set; }
+        internal int InitCandleCount { get; set; }
 
         #region Private Property
-        private int BaseCandleCount { get; set; }
         private bool Initialized { get; set; } = false;
-        private bool ChainOnOrderUpdateExists { get; set; } = false;
         private string ListenKey { get; set; } = "";
         private string PublicKey { get; set; } = "";
         private string SecretKey { get; set; } = "";
         private readonly List<IStreamCore> _streamCoreList = [];
-        private event Action<DataEvent<BinanceFuturesStreamOrderUpdate>> Chain_OnOrderUpdate = delegate { };
+        private event Action<DataEvent<BinanceFuturesStreamOrderUpdate>> Chain_OnOrderUpdate = null;
         private Action<DataEvent<BinanceFuturesStreamAccountUpdate>>? OnAccountUpdate { get; set; } = null;
         private Action<BinanceFuturesAccountInfo>? OnGetAccountInfo { get; set; } = null;
         private Action<DataEvent<BinanceStreamEvent>>? OnListenKeyExpired { get; set; } = null;
         #endregion
 
         #region Public Method
-        public S AddStreamCore<S>(Symbol symbol, KlineInterval interval)
+        public S AddStreamCore<S>()
             where S : IStreamCore, new()
         {
+            S adder = new();
             foreach (var core in _streamCoreList)
             {
-                if (core.Exists(symbol, interval)) throw new Exception($"Stream core with symbol: {symbol}, interval: {interval} already exists");
+                if (core.Exists(adder.Symbol, adder.Interval)) throw new Exception($"Stream core with symbol: {adder.Symbol}, interval: {adder.Interval} already exists");
             }
 
-            S adder = new() { Symbol = symbol, Interval = interval};
             _streamCoreList.Add(adder);
 
             return adder;
@@ -99,14 +102,13 @@ namespace PMM.Core.CoreClass
                 {
                     foreach (var callback in core.OrderCallbackList)
                     {
-                        if (ChainOnOrderUpdateExists == false) ChainOnOrderUpdateExists = true;
-                        Chain_OnOrderUpdate += callback;
+                        if (Chain_OnOrderUpdate == null) Chain_OnOrderUpdate = callback;
+                        else Chain_OnOrderUpdate += callback;
                     }
                 }
 
             }
         }
-
         private async Task Init()
         {
             if (Initialized == false) throw new Exception("No Provided StrategyManagerOptions");
@@ -126,15 +128,18 @@ namespace PMM.Core.CoreClass
 
             var listenKey = await client.UsdFuturesApi.Account.StartUserStreamAsync();
             ListenKey = listenKey.Data;
+            KeepAliveScheduler.Run(ListenKey);
 
             BindOrderUpdateProcess();
             
             foreach (var core in _streamCoreList)
             {
+                core.BindStrategy();
+
                 core.PreStreamInit();
                 core.ExecuteChain_PreStrategyInit();
                 
-                await Util.HandleRequest(() => client.UsdFuturesApi.ExchangeData.GetKlinesAsync(core.Symbol.ToString(), core.Interval, limit: BaseCandleCount), core.OnGetBaseCandle());
+                await Util.HandleRequest(() => client.UsdFuturesApi.ExchangeData.GetKlinesAsync(core.Symbol.ToString(), core.Interval, limit: InitCandleCount), core.OnGetBaseCandle());
 
                 if (core.AddedCandleExists()) 
                 {
@@ -149,13 +154,11 @@ namespace PMM.Core.CoreClass
 
                 core.PostStreamInit();
                 core.ExecuteChain_PostStrategyInit();
-
-
             }
         }
         private Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? OnOrderUpdate()
         {            
-            return ChainOnOrderUpdateExists == true ?
+            return Chain_OnOrderUpdate != null ?
                 (DataEvent<BinanceFuturesStreamOrderUpdate> data) =>
                     {
                         Chain_OnOrderUpdate.Invoke(data);

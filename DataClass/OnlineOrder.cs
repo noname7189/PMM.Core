@@ -1,26 +1,27 @@
-﻿using Binance.Net.Enums;
-using PMM.Core.Enum;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using PMM.Core.EntityClass;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+using Binance.Net.Enums;
 
 namespace PMM.Core.DataClass
 {
     public class OnlineOrder
     {
-        [JsonConverter(typeof(JsonStringEnumConverter))]
-        public Symbol Symbol { get; set; }
-        [JsonConverter(typeof(JsonStringEnumConverter))]
-        public KlineInterval Interval { get; set; }
-        public long? TradeId { get; set; }
         public long OrderId { get; set; }
-        public bool Finished { get; set; }
+        public long? CounterOrderId { get; set; }
+        public long? TradeId { get; set; }
         public decimal Quantity { get; set; }
         public decimal Price { get; set; }
         public decimal FulfilledQuantity { get; set; }
-        public int MixedSignalId { get; set; }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public OrderStatus OrderStatus { get; set; }
+
+        [JsonIgnore]
+        [Required]
+        [ForeignKey(nameof(Signal))]
+        public int SignalId { get; set; }
+        [JsonIgnore]
+        public virtual Signal Signal { get; set; }
     }
 }

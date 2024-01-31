@@ -11,8 +11,12 @@ namespace PMM.Core.Interface
     {
         public DbSet<I> IndicatorRepo(X db);
     }
-    public interface IDerivedRepository<X, S> where X : DbContext where S : Signal
+    public interface ISignalRepository<X, S> where X : DbContext where S : Signal
     {
         public DbSet<S> SignalRepo(X db);
+    }
+    public interface IOrderRepository<X, O> where X : DbContext where O : Order
+    {
+        public DbSet<O> OrderRepo(X db);
     }
 }

@@ -14,15 +14,12 @@ namespace PMM.Core.CoreClass
         #region Public Property
         public readonly List<C> Candles = [];
         public readonly List<C> CandleAdders = [];
-        public Symbol Symbol { get => _symbol; set => _symbol = value; }
-        public KlineInterval Interval { get => _interval; set => _interval = value; }
-        public List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> OrderCallbackList { get => _orderCallbackList; }
+        public override List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> OrderCallbackList { get => _orderCallbackList; }
+
         #endregion
 
         #region Private Property
-        private Symbol _symbol;
-        private KlineInterval _interval;
-        private readonly List<IStrategy> StrategyList = [];
+        private readonly List<IStrategy> _strategyList = [];
         private readonly object LockObj = new();
         private readonly List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> _orderCallbackList = [];
 
@@ -40,12 +37,11 @@ namespace PMM.Core.CoreClass
         #endregion
 
         #region Public Method
-        public bool AddedCandleExists()
+        internal override bool AddedCandleExists()
         {
-            // Remember the last online candle always be added into CandleAdders, so CandleAdders.Count > 0 always be true
-            return CandleAdders.Count > 1;
+            return CandleAdders.Count > 0;
         }
-        public bool Exists(Symbol symbol, KlineInterval interval)
+        internal override bool Exists(Symbol symbol, KlineInterval interval)
         {
             return Symbol == symbol && Interval == interval;
         }
@@ -60,14 +56,14 @@ namespace PMM.Core.CoreClass
         #region Private Method
         private void BindInitProcess(IInitProcess strategy)
         {
-            Chain_PreStrategyInit += strategy.PreInit;
+            Chain_PreStrategyInit += strategy.PreStrategyInitWrapper;
             Chain_InitStrategyWithoutAdditionalCandles += strategy.InitWithoutAdditionalCandles;
             Chain_InitStrategyWithAdditionalCandles += strategy.InitWithAdditionalCandles;
-            Chain_PostStrategyInit += strategy.PostInit;
+            Chain_PostStrategyInit += strategy.PostStrategyInitWrapper;
         }
         private void BindOnlineProcess(IOnlineProcess strategy)
         {
-            Chain_TryToMakeNewIndicator += strategy.TryToMakeNewIndicator;
+            Chain_TryToMakeNewIndicator += strategy.TryToMakeNewIndicatorWrapper;
             Chain_ProcessWithDifferentCandle += strategy.ProcessWithDifferentCandle;
             Chain_ProcessWithSameCandle += strategy.ProcessWithSameCandle;
         }
@@ -75,14 +71,30 @@ namespace PMM.Core.CoreClass
 
         #region Abstract Method
         public abstract DbSet<C> CandleRepo(X db);
-        public abstract void PreStreamInit();
-        public abstract void InitStreamWithoutAdditionalCandles();
-        public abstract void InitStreamWithAdditionalCandles();
-        public abstract void PostStreamInit();
         #endregion
 
         #region Interface Implement
-        public Action<IEnumerable<IBinanceKline>> OnGetBaseCandle() => (klines) =>
+
+        public override void InitStreamWithAdditionalCandles()
+        {
+            using X db = new();
+            CandleRepo(db).AddRange(CandleAdders);
+            db.SaveChanges();
+
+            Candles.AddRange(CandleAdders);
+        }
+
+        public override void InitStreamWithoutAdditionalCandles()
+        {
+
+        }
+
+        public override void PostStreamInit()
+        {
+            Candles.RemoveRange(0, Candles.Count - StrategyManager.Instance.BaseCandleCount);
+        }
+
+        public sealed override Action<IEnumerable<IBinanceKline>> OnGetBaseCandle() => (klines) =>
         {
             if (Candles.Count == 0) throw new Exception("StreamCore has not been initialized!");
             //if (Candles.Count == 0) return;
@@ -103,6 +115,8 @@ namespace PMM.Core.CoreClass
                         Close = kline.ClosePrice,
                         Volume = kline.Volume
                     });
+
+                    targetTime = kline.CloseTime;
                 }
                 else
                 {
@@ -111,24 +125,31 @@ namespace PMM.Core.CoreClass
             }
 
             if (found == false) throw new Exception("Candle data needs Up-To-Date");
+            // The last candle is very likely not closed yet, so remove this candle.
+            if (CandleAdders[^2].Time.AddMinutes(5) != targetTime)
+            {
+                CandleAdders.RemoveAt(CandleAdders.Count - 1);
+            }
         };
 
-        public void AddStrategy<S>()
-            where S : IStrategy, new()
+        public sealed override IStreamCore AddStrategy<S>()
         {
-            foreach (var strategy in StrategyList)
+            foreach (var strategy in _strategyList)
             {
                 if (strategy.GetType() == typeof(S)) throw new Exception($"{GetType()} already has {typeof(S)}");
             }
 
             S adder = new();
-            StrategyList.Add(adder);
+            _strategyList.Add(adder);
+
+            return this;
         }
 
-        public void BindStrategy()
+        internal override void BindStrategy()
         {
-            foreach (var strategy in StrategyList)
+            foreach (var strategy in _strategyList)
             {
+                strategy.SetStreamCore(this);
                 BindInitProcess(strategy);
                 BindOnlineProcess(strategy);
                 Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? callback = strategy.ProcessOnOrderUpdate();
@@ -138,42 +159,40 @@ namespace PMM.Core.CoreClass
                 }
             }
         }
-        public void ExecuteChain_PreStrategyInit()
+
+        internal override void ExecuteChain_PreStrategyInit()
         {
             Chain_PreStrategyInit.Invoke();
         }
 
-        public void ExecuteChain_InitStrategyWithoutAdditionalCandles()
+        internal override void ExecuteChain_InitStrategyWithoutAdditionalCandles()
         {
             Chain_InitStrategyWithoutAdditionalCandles.Invoke();
         }
 
-        public void ExecuteChain_InitStrategyWithAdditionalCandles()
+        internal override void ExecuteChain_InitStrategyWithAdditionalCandles()
         {
             Chain_InitStrategyWithAdditionalCandles.Invoke();
         }
-        public void ExecuteChain_PostStrategyInit()
+        internal override void ExecuteChain_PostStrategyInit()
         {
             Chain_PostStrategyInit.Invoke();
         }
 
 
-        public void ExecuteChain_TryToMakeNewIndicator()
+        internal override void ExecuteChain_TryToMakeNewIndicator()
         {
             Chain_TryToMakeNewIndicator.Invoke();
         }
-        public void ExecuteChain_ProcessWithSameCandle(IBinanceStreamKline klines)
+        internal override void ExecuteChain_ProcessWithSameCandle(IBinanceStreamKline klines)
         {
             Chain_ProcessWithSameCandle.Invoke(klines);
         }
-
-        public void ExecuteChain_ProcessWithDifferentCandle(IBinanceStreamKline klines, OHLCV prevCandle)
+        internal override void ExecuteChain_ProcessWithDifferentCandle(IBinanceStreamKline klines, OHLCV prevCandle)
         {
             Chain_ProcessWithDifferentCandle.Invoke(klines, prevCandle);
         }
-
-
-        public Action<DataEvent<IBinanceStreamKlineData>> OnGetStreamData() => (stream) =>
+        public sealed override Action<DataEvent<IBinanceStreamKlineData>> OnGetStreamData() => (stream) =>
         {
             IBinanceStreamKline klines = stream.Data.Data;
 
@@ -197,14 +216,18 @@ namespace PMM.Core.CoreClass
                         Volume = klines.Volume
                     };
 
-                    Task.Run(()=> { AddCandles([prevCandle]); });
-                }
-            }
+                    Task.Run(() =>
+                    {
+                        AddCandles([prevCandle]);
+                        Candles.Add(prevCandle);
+                        // Clear indicators[0] after making new
+                        ExecuteChain_TryToMakeNewIndicator();
+                        // Manually clear candles[0]
+                        Candles.RemoveAt(0);
 
-            if (prevCandle != null)
-            {
-                ExecuteChain_TryToMakeNewIndicator();
-                ExecuteChain_ProcessWithDifferentCandle(klines, prevCandle);
+                        ExecuteChain_ProcessWithDifferentCandle(klines, prevCandle);
+                    });
+                }
             }
         };
         #endregion

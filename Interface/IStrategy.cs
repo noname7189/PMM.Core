@@ -2,6 +2,8 @@
 using Binance.Net.Interfaces;
 using Binance.Net.Objects.Models.Futures.Socket;
 using CryptoExchange.Net.Sockets;
+using Microsoft.EntityFrameworkCore;
+using PMM.Core.CoreClass;
 using PMM.Core.DataClass;
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
@@ -13,7 +15,8 @@ namespace PMM.Core.Interface
         /// <summary>
         /// User defined pre-initialization (e.g., Fetch indicator list)
         /// </summary>
-        public void PreInit();
+        public void PreStrategyInit();
+        public void PreStrategyInitWrapper();
         /// <summary>
         /// User defined initialization without additional candles (e.g., Fetch online-order, online-signal list)
         /// </summary>
@@ -25,26 +28,30 @@ namespace PMM.Core.Interface
         /// <summary>
         /// User defined post-initlization (e.g., Fetch last online signal generated after initialization)
         /// </summary>
-        public void PostInit();
+        public void PostStrategyInit();
+        public void PostStrategyInitWrapper();
     }
 
     public interface IOnlineProcess // IntraStream
     {
         public void TryToMakeNewIndicator();
+        public void TryToMakeNewIndicatorWrapper();
         public void ProcessWithSameCandle(IBinanceStreamKline klines);
         public void ProcessWithDifferentCandle(IBinanceStreamKline klines, OHLCV prevCandle);
-        public OnlineSignal? TryToMakeNewSignal();
     }
 
     public interface IOrderProcess
     {
-        public void ProcessEnter(IBinanceStreamKline klines, OnlineSignal target);
-        public void ProcessTakeProfit(IBinanceStreamKline klines, OnlineSignal target);
-        public void ProcessLosscut(IBinanceStreamKline klines, OnlineSignal target);
+        public void ProcessEnter(decimal enterPrice, Signal target);
+        public void ProcessTakeProfit(decimal exitPrice, DateTime exitTime);
+        public void ProcessLosscut(DateTime exitTime, Signal target);
         public Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? ProcessOnOrderUpdate();
     }
 
     public interface IStrategy : IInitProcess, IOnlineProcess, IOrderProcess
     {
+        public void SetStreamCore<X,C>(StreamCore<X,C> core)
+            where X: DbContext, new()
+            where C : OHLCV, new();
     }
 }
