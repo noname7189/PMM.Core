@@ -15,7 +15,7 @@ namespace PMM.Core.Utils
             else Console.WriteLine("KeepAlive Fail");
         }
     }
-    internal static class KeepAliveScheduler
+    internal class KeepAliveScheduler
     {
         private static readonly IScheduler _scheduler = (IScheduler)new StdSchedulerFactory().GetScheduler();
         internal static void Run(string listenKey)

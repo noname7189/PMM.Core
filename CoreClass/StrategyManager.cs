@@ -83,13 +83,13 @@ namespace PMM.Core.CoreClass
         #endregion
 
         #region Private Method
-        private StreamCore<X, C> GetStreamCoreFromSymbolAndInterval<X,C>(Symbol symbol, KlineInterval interval)
+        private BaseStreamCore<X, C> GetStreamCoreFromSymbolAndInterval<X,C>(Symbol symbol, KlineInterval interval)
             where X : DbContext, new()
-            where C : OHLCV, new()
+            where C : BaseCandle, new()
         {
             foreach (var core in _streamCoreList)
             {
-                if (core.Exists(symbol, interval)) return (StreamCore<X,C>)core;
+                if (core.Exists(symbol, interval)) return (BaseStreamCore<X,C>)core;
             }
 
             throw new Exception($"No StreamCore with symbol: {symbol}, interval: {interval}");

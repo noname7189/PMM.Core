@@ -11,9 +11,9 @@ namespace PMM.Core.CoreClass
 {
     public abstract class BaseStrategy<X, C, I, S> : IStrategy, IIndicatorRepository<X, I>, ISignalRepository<X, S>
         where X : DbContext, new()
-        where C : OHLCV, new()
-        where I : Indicator, new()
-        where S : Signal, new()
+        where C : BaseCandle, new()
+        where I : BaseIndicator, new()
+        where S : BaseSignal, new()
     {
         protected List<C> Candles { get; set; }
         protected readonly List<I> Indicators = [];
@@ -21,14 +21,14 @@ namespace PMM.Core.CoreClass
         public readonly List<OnlineOrder> OnlineOrders = [];
         protected Symbol Symbol { get; set; }
 
-        public StreamCore<X, C> StreamCore { get; private set; }
-        private void SetStreamCore(StreamCore<X, C> core)
+        public BaseStreamCore<X, C> StreamCore { get; private set; }
+        private void SetStreamCore(BaseStreamCore<X, C> core)
         {
             StreamCore = core;
         }
-        public void SetStreamCore<X1, C1>(StreamCore<X1, C1> core)
+        public void SetStreamCore<X1, C1>(BaseStreamCore<X1, C1> core)
             where X1 : DbContext, new()
-            where C1 : OHLCV, new()
+            where C1 : BaseCandle, new()
         {
             SetStreamCore(core);
         }
@@ -57,16 +57,16 @@ namespace PMM.Core.CoreClass
         public abstract void InitWithoutAdditionalCandles();
         public abstract void PreStrategyInit();
         public abstract void PostStrategyInit();
-        public abstract void ProcessEnter(decimal enterPrice, Signal target);
-        public abstract void ProcessLosscut(DateTime exitTime, Signal target);
+        public abstract void ProcessEnter(decimal enterPrice, BaseSignal target);
+        public abstract void ProcessLosscut(DateTime exitTime, BaseSignal target);
         public abstract Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? ProcessOnOrderUpdate();
         public abstract void ProcessTakeProfit(decimal exitPrice, DateTime exitTime);
-        public abstract void ProcessWithDifferentCandle(IBinanceStreamKline klines, OHLCV prevCandle);
+        public abstract void ProcessWithDifferentCandle(IBinanceStreamKline klines, BaseCandle prevCandle);
         public abstract void ProcessWithSameCandle(IBinanceStreamKline klines);
         public abstract void TryToMakeNewIndicator();
         public abstract S? TryToMakeNewSignal();
 
-        protected void FinalizeSignal(Signal signal, decimal exitPrice, DateTime exitTime)
+        protected void FinalizeSignal(BaseSignal signal, decimal exitPrice, DateTime exitTime)
         {
             signal.EndTime = exitTime;
             signal.ExitPrice = exitPrice;

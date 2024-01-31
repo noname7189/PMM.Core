@@ -1,11 +1,9 @@
-﻿using Binance.Net.Enums;
-using PMM.Core.DataClass;
+﻿using PMM.Core.DataClass;
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
 
 namespace PMM.Core.EntityClass
 {
-    public class Order : OnlineOrder
+    public class BaseOrder : OnlineOrder
     {
         [Key]
         public int Id { get; set; }

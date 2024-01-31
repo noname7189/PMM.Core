@@ -37,21 +37,21 @@ namespace PMM.Core.Interface
         public void TryToMakeNewIndicator();
         public void TryToMakeNewIndicatorWrapper();
         public void ProcessWithSameCandle(IBinanceStreamKline klines);
-        public void ProcessWithDifferentCandle(IBinanceStreamKline klines, OHLCV prevCandle);
+        public void ProcessWithDifferentCandle(IBinanceStreamKline klines, BaseCandle prevCandle);
     }
 
     public interface IOrderProcess
     {
-        public void ProcessEnter(decimal enterPrice, Signal target);
+        public void ProcessEnter(decimal enterPrice, BaseSignal target);
         public void ProcessTakeProfit(decimal exitPrice, DateTime exitTime);
-        public void ProcessLosscut(DateTime exitTime, Signal target);
+        public void ProcessLosscut(DateTime exitTime, BaseSignal target);
         public Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? ProcessOnOrderUpdate();
     }
 
     public interface IStrategy : IInitProcess, IOnlineProcess, IOrderProcess
     {
-        public void SetStreamCore<X,C>(StreamCore<X,C> core)
+        public void SetStreamCore<X,C>(BaseStreamCore<X,C> core)
             where X: DbContext, new()
-            where C : OHLCV, new();
+            where C : BaseCandle, new();
     }
 }

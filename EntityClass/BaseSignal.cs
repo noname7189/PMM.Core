@@ -8,7 +8,7 @@ namespace PMM.Core.EntityClass
 {
     [Index(nameof(StartTime), IsUnique = true)]
     [Index(nameof(EndTime))]
-    public class Signal
+    public class BaseSignal
     {
         [Key] 
         public int Id { get; set; }
@@ -26,6 +26,6 @@ namespace PMM.Core.EntityClass
         [JsonIgnore][Required][ForeignKey(nameof(Candle))]
         public int CandleId { get; set; }
         [JsonIgnore]
-        public virtual OHLCV Candle { get; set; }
+        public virtual BaseCandle Candle { get; set; }
     }
 }

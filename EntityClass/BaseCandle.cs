@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 namespace PMM.Core.EntityClass
 {
     [Index(nameof(Time), IsUnique = true)]
-    public class OHLCV
+    public class BaseCandle
     {
         [Key]
         public int Id { get; set; }

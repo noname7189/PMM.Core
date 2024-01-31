@@ -30,7 +30,7 @@ namespace PMM.Core.Interface
         internal abstract void BindStrategy();
         internal abstract void ExecuteChain_TryToMakeNewIndicator();
         internal abstract void ExecuteChain_ProcessWithSameCandle(IBinanceStreamKline klines);
-        internal abstract void ExecuteChain_ProcessWithDifferentCandle(IBinanceStreamKline klines, OHLCV prevCandle);
+        internal abstract void ExecuteChain_ProcessWithDifferentCandle(IBinanceStreamKline klines, BaseCandle prevCandle);
         internal abstract void ExecuteChain_PreStrategyInit();
         internal abstract void ExecuteChain_InitStrategyWithoutAdditionalCandles();
         internal abstract void ExecuteChain_InitStrategyWithAdditionalCandles();

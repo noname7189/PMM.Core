@@ -9,7 +9,7 @@ using PMM.Core.Interface;
 
 namespace PMM.Core.CoreClass
 {
-    public abstract class StreamCore<X, C>() : IStreamCore, ICandleRepository<X, C> where X : DbContext, new() where C : OHLCV, new()
+    public abstract class BaseStreamCore<X, C>() : IStreamCore, ICandleRepository<X, C> where X : DbContext, new() where C : BaseCandle, new()
     {
         #region Public Property
         public readonly List<C> Candles = [];
@@ -33,7 +33,7 @@ namespace PMM.Core.CoreClass
         // OnlineEvent
         private event Action Chain_TryToMakeNewIndicator = delegate { };
         private event Action<IBinanceStreamKline> Chain_ProcessWithSameCandle = delegate { };
-        private event Action<IBinanceStreamKline, OHLCV> Chain_ProcessWithDifferentCandle = delegate { };
+        private event Action<IBinanceStreamKline, BaseCandle> Chain_ProcessWithDifferentCandle = delegate { };
         #endregion
 
         #region Public Method
@@ -188,7 +188,7 @@ namespace PMM.Core.CoreClass
         {
             Chain_ProcessWithSameCandle.Invoke(klines);
         }
-        internal override void ExecuteChain_ProcessWithDifferentCandle(IBinanceStreamKline klines, OHLCV prevCandle)
+        internal override void ExecuteChain_ProcessWithDifferentCandle(IBinanceStreamKline klines, BaseCandle prevCandle)
         {
             Chain_ProcessWithDifferentCandle.Invoke(klines, prevCandle);
         }

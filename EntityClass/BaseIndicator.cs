@@ -6,16 +6,14 @@ using System.Text.Json.Serialization;
 namespace PMM.Core.EntityClass
 {
     [Index(nameof(Time), IsUnique = true)]
-    public class Indicator
+    public class BaseIndicator
     {
         [Key]
         public int Id { get; set; }
         public DateTime Time { get; set; }
-        [JsonIgnore]
-        [Required]
-        [ForeignKey(nameof(Candle))]
+        [JsonIgnore][Required][ForeignKey(nameof(Candle))]
         public int CandleId { get; set; }
         [JsonIgnore]
-        public virtual OHLCV Candle { get; set; }
+        public virtual BaseCandle Candle { get; set; }
     }
 }

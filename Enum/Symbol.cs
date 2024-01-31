@@ -1,6 +1,4 @@
-﻿using PMM.Core.CoreClass;
-
-namespace PMM.Core.Enum
+﻿namespace PMM.Core.Enum
 {
     public enum Symbol
     {

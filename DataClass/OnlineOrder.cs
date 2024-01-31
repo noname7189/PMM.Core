@@ -22,6 +22,6 @@ namespace PMM.Core.DataClass
         [ForeignKey(nameof(Signal))]
         public int SignalId { get; set; }
         [JsonIgnore]
-        public virtual Signal Signal { get; set; }
+        public virtual BaseSignal Signal { get; set; }
     }
 }
