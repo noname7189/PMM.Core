@@ -96,7 +96,7 @@ namespace PMM.Core.CoreClass
 
         public sealed override Action<IEnumerable<IBinanceKline>> OnGetBaseCandle() => (klines) =>
         {
-            if (Candles.Count == 0) throw new Exception("StreamCore has not been initialized!");
+            if (Candles.Count == 0) throw new ArgumentException("StreamCore has not been initialized!");
             //if (Candles.Count == 0) return;
             DateTime targetTime = Candles.Last().Time;
 
@@ -136,7 +136,7 @@ namespace PMM.Core.CoreClass
         {
             foreach (var strategy in _strategyList)
             {
-                if (strategy.GetType() == typeof(S)) throw new Exception($"{GetType()} already has {typeof(S)}");
+                if (strategy.GetType() == typeof(S)) throw new ArgumentException($"{GetType()} already has {typeof(S)}");
             }
 
             S adder = new();

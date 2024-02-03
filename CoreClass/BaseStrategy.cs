@@ -66,7 +66,7 @@ namespace PMM.Core.CoreClass
         public abstract void TryToMakeNewIndicator();
         public abstract S? TryToMakeNewSignal();
 
-        protected void FinalizeSignal(BaseSignal signal, decimal exitPrice, DateTime exitTime)
+        protected void FinalizeSignal(S signal, decimal exitPrice, DateTime exitTime)
         {
             signal.EndTime = exitTime;
             signal.ExitPrice = exitPrice;
@@ -76,6 +76,5 @@ namespace PMM.Core.CoreClass
             }
             else signal.ExpectedProfit = null;
         }
-
     }
 }

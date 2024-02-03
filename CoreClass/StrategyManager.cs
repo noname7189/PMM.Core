@@ -10,6 +10,11 @@ using PMM.Core.EntityClass;
 using PMM.Core.Enum;
 using PMM.Core.Utils;
 using PMM.Core.Interface;
+using PMM.Core.Provider;
+using PMM.Core.Provider.Enum;
+using PMM.Core.Provider.Exchange_Binance;
+using PMM.Core.Provider.Binance;
+using PMM.Core.Provider.Interface;
 
 namespace PMM.Core.CoreClass
 {
@@ -55,16 +60,46 @@ namespace PMM.Core.CoreClass
         private Action<DataEvent<BinanceFuturesStreamAccountUpdate>>? OnAccountUpdate { get; set; } = null;
         private Action<BinanceFuturesAccountInfo>? OnGetAccountInfo { get; set; } = null;
         private Action<DataEvent<BinanceStreamEvent>>? OnListenKeyExpired { get; set; } = null;
+
+        private readonly List<BaseProvider> _providerList = [];
         #endregion
 
         #region Public Method
+        public IProvider AddProvider(Exchange exchange, LibProvider libProvider)
+        {
+            if (exchange == Exchange.Binance)
+            {
+                switch (libProvider)
+                {
+                    case LibProvider.Self:
+                        {
+                            JKorfProvider adder = new();
+                            _providerList.Add(adder);
+                            return adder;
+
+                        }
+
+                    case LibProvider.JKorf:
+                        {
+                            SelfProvider adder = new();
+                            _providerList.Add(adder);
+
+                            return adder;
+                        }
+                    default:
+                        break;
+                }
+            }
+            throw new NotImplementedException();
+        }
+
         public S AddStreamCore<S>()
             where S : IStreamCore, new()
         {
             S adder = new();
             foreach (var core in _streamCoreList)
             {
-                if (core.Exists(adder.Symbol, adder.Interval)) throw new Exception($"Stream core with symbol: {adder.Symbol}, interval: {adder.Interval} already exists");
+                if (core.Exists(adder.Symbol, adder.Interval)) throw new ArgumentException($"Stream core with symbol: {adder.Symbol}, interval: {adder.Interval} already exists");
             }
 
             _streamCoreList.Add(adder);
@@ -92,7 +127,7 @@ namespace PMM.Core.CoreClass
                 if (core.Exists(symbol, interval)) return (BaseStreamCore<X,C>)core;
             }
 
-            throw new Exception($"No StreamCore with symbol: {symbol}, interval: {interval}");
+            throw new ArgumentException($"No StreamCore with symbol: {symbol}, interval: {interval}");
         }
         private void BindOrderUpdateProcess()
         {
