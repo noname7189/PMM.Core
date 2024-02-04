@@ -3,7 +3,9 @@ using PMM.Core.DataClass;
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
 using PMM.Core.Interface;
+using PMM.Core.Provider.DataClass;
 using PMM.Core.Provider.DataClass.Stream;
+using PMM.Core.Provider.Interface;
 
 namespace PMM.Core.CoreClass
 {
@@ -20,9 +22,10 @@ namespace PMM.Core.CoreClass
         protected Symbol Symbol { get; set; }
 
         public BaseStreamCore<X, C> StreamCore { get; private set; }
+        public IRestClientAdapter RestClientAdapter { get; private set; }
         private void SetStreamCore(BaseStreamCore<X, C> core)
         {
-            StreamCore = core;
+            StreamCore = core ?? throw new ArgumentNullException(nameof(core));
         }
         public void SetStreamCore<X1, C1>(BaseStreamCore<X1, C1> core)
             where X1 : DbContext, new()
@@ -31,6 +34,10 @@ namespace PMM.Core.CoreClass
             SetStreamCore(core);
         }
 
+        public void SetRestClientAdapter(IRestClientAdapter adapter)
+        {
+            RestClientAdapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
+        }
         public void PreStrategyInitWrapper()
         {
             Candles = StreamCore.Candles;
@@ -57,7 +64,7 @@ namespace PMM.Core.CoreClass
         public abstract void PostStrategyInit();
         public abstract void ProcessEnter(decimal enterPrice, BaseSignal target);
         public abstract void ProcessLosscut(DateTime exitTime, BaseSignal target);
-        public abstract Action<OrderResult>? ProcessOnOrderUpdate();
+        public abstract Action<OrderStreamData>? ProcessOnOrderUpdate();
         public abstract void ProcessTakeProfit(decimal exitPrice, DateTime exitTime);
         public abstract void ProcessWithDifferentCandle(KlineStreamData klines, BaseCandle prevCandle);
         public abstract void ProcessWithSameCandle(KlineStreamData klines);

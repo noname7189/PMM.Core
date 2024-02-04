@@ -7,7 +7,9 @@ using PMM.Core.CoreClass;
 using PMM.Core.DataClass;
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
+using PMM.Core.Provider.DataClass;
 using PMM.Core.Provider.DataClass.Stream;
+using PMM.Core.Provider.Interface;
 
 namespace PMM.Core.Interface
 {
@@ -46,7 +48,7 @@ namespace PMM.Core.Interface
         public void ProcessEnter(decimal enterPrice, BaseSignal target);
         public void ProcessTakeProfit(decimal exitPrice, DateTime exitTime);
         public void ProcessLosscut(DateTime exitTime, BaseSignal target);
-        public Action<OrderResult>? ProcessOnOrderUpdate();
+        public Action<OrderStreamData>? ProcessOnOrderUpdate();
     }
 
     public interface IStrategy : IInitProcess, IOnlineProcess, IOrderProcess
@@ -54,5 +56,6 @@ namespace PMM.Core.Interface
         public void SetStreamCore<X,C>(BaseStreamCore<X,C> core)
             where X: DbContext, new()
             where C : BaseCandle, new();
+        public void SetRestClientAdapter(IRestClientAdapter adapter);
     }
 }

@@ -1,5 +1,5 @@
 ﻿using PMM.Core.Enum;
-using PMM.Core.Provider.DataClass;
+using PMM.Core.Provider.DataClass.Rest;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Enum;
 

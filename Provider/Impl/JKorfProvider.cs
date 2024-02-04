@@ -4,17 +4,32 @@ using PMM.Core.Provider.Enum;
 using Binance.Net.Interfaces;
 using PMM.Core.Utils;
 using CryptoExchange.Net.Sockets;
-using PMM.Core.Provider.DataClass;
-using Symbol = PMM.Core.Enum.Symbol;
 using CryptoExchange.Net.Objects;
 using Binance.Net.Enums;
 using PMM.Core.Provider.DataClass.Stream;
 using CryptoExchange.Net.Authentication;
+using PMM.Core.Provider.DataClass.Rest;
+using Binance.Net.Objects.Models.Futures.Socket;
+using Binance.Net.Objects.Models;
+using Symbol = PMM.Core.Enum.Symbol;
 
-namespace PMM.Core.Provider.Exchange_Binance
+namespace PMM.Core.Provider.Impl
 {
     internal class JKorfProvider : BaseProvider
-    {        
+    {
+        internal override void InitContext()
+        {
+            ApiCredentials credentials = new(PublicKey, SecretKey);
+            BinanceRestClient.SetDefaultOptions(opt =>
+            {
+                opt.ApiCredentials = credentials;
+            });
+            BinanceSocketClient.SetDefaultOptions(opt =>
+            {
+                opt.ApiCredentials = credentials;
+            });
+        }
+
         internal override void CreateContext(ProviderType type)
         {
             if (type == ProviderType.Rest)
@@ -99,18 +114,6 @@ namespace PMM.Core.Provider.Exchange_Binance
             return null;
         }
 
-        internal override void InitContext()
-        {
-            ApiCredentials credentials = new(PublicKey, SecretKey);
-            BinanceRestClient.SetDefaultOptions(opt =>
-            {
-                opt.ApiCredentials = credentials;
-            });
-            BinanceSocketClient.SetDefaultOptions(opt =>
-            {
-                opt.ApiCredentials = credentials;
-            });
-        }
 
         public async override Task<OrderResult?> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity)
         {
@@ -131,13 +134,14 @@ namespace PMM.Core.Provider.Exchange_Binance
                 return new()
                 {
                     OrderId = data.Id,
+                    TradeId = null,
                     Symbol = symbol,
                     Side = SideConverter(data.Side),
                     Status = StatusConverter(data.Status),
                     Price = data.Price,
                     AveragePrice = data.AveragePrice,
                     QuantityFilled = data.QuantityFilled,
-                    CummulativeQuantity = data.CummulativeQuantity,
+                    FulfilledQuantity = data.CummulativeQuantity ?? 0,
                     Quantity = data.Quantity,
                     Final = data.ClosePosition,
                     UpdateTime = data.UpdateTime,
@@ -160,14 +164,15 @@ namespace PMM.Core.Provider.Exchange_Binance
 
                 return new()
                 {
-                    OrderId = orderId,
+                    OrderId = data.Id,
+                    TradeId = null,
                     Symbol = symbol,
                     Side = SideConverter(data.Side),
                     Status = StatusConverter(data.Status),
                     Price = data.Price,
                     AveragePrice = data.AveragePrice,
                     QuantityFilled = data.QuantityFilled,
-                    CummulativeQuantity = data.CummulativeQuantity,
+                    FulfilledQuantity = data.CummulativeQuantity ?? 0,
                     Quantity = data.Quantity,
                     Final = data.ClosePosition,
                     UpdateTime = data.UpdateTime,
@@ -180,7 +185,6 @@ namespace PMM.Core.Provider.Exchange_Binance
 
         public async override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamData> onGetStreamData)
         {
-
             if (ClientContext is BinanceSocketClient)
             {
                 Action<DataEvent<IBinanceStreamKlineData>> handler = (data) =>
@@ -211,10 +215,42 @@ namespace PMM.Core.Provider.Exchange_Binance
         }
 
         public async override Task SubscribeToUserDataUpdatesAsync()
-        {
+        {            
             if (ClientContext is BinanceSocketClient)
             {
-                CallResult<UpdateSubscription> result = await ClientContext.UsdFuturesApi.SubscribeToUserDataUpdatesAsync(ListenKey, null, null, OnAccountUpdate, OnOrderUpdate(), OnListenKeyExpired!, null, null, null);
+                Action<DataEvent<BinanceFuturesStreamAccountUpdate>>? onAccountUpdateHandler = OnAccountUpdate != null ? (data) =>
+                {
+
+                    BinanceFuturesStreamAccountUpdateData data1 = data.Data.UpdateData;
+                    AccountStreamData data2 = new(data1, data.Data.TransactionTime);
+
+                    OnAccountUpdate.Invoke(data2);
+                }
+                : null;
+
+
+                Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? onOrderUpdateHandler = CheckChainOnOrderUpdate() == true ? (data) =>
+                {
+                    BinanceFuturesStreamOrderUpdateData data1 = data.Data.UpdateData;
+
+                    OrderStreamData data2 = new(data1, data.Data.EventTime);
+                    OnOrderUpdate(data2);
+                }
+                : null;
+
+                Action<DataEvent<BinanceStreamEvent>> onListenKeyExpiredHandler = OnListenKeyExpired != null ? (data) =>
+                {
+                    StreamEvent e = new()
+                    {
+                        Event = data.Data.Event,
+                        EventTime = data.Data.EventTime,
+                    };
+
+                    OnListenKeyExpired.Invoke(e);
+                }
+                : (data) => { };
+
+                CallResult<UpdateSubscription> result = await ClientContext.UsdFuturesApi.SubscribeToUserDataUpdatesAsync(ListenKey, null, null, onAccountUpdateHandler, onOrderUpdateHandler, onListenKeyExpiredHandler, null, null, null);
                 if (result.Success == false)
                 {
                     throw new Exception($"Subscribe for UserDataUpdate is failed");
@@ -222,8 +258,27 @@ namespace PMM.Core.Provider.Exchange_Binance
             }
         }
 
+        internal static Symbol SymbolConverter(string symbol)
+        {
+            return symbol switch
+            {
+                "ETHUSDT" => Symbol.ETHUSDT,
+                "BTCUSDT" => Symbol.BTCUSDT,
+                _ => throw new ArgumentException(symbol, nameof(symbol)),
+            };
+        }
 
-        private static OrderPosition SideConverter(OrderSide side)
+        internal static UpdateReason ReasonConverter(AccountUpdateReason reason)
+        {
+            return reason switch
+            {
+                AccountUpdateReason.FundingFee => UpdateReason.FundingFee,
+                _ => UpdateReason.Others,
+            };
+        }
+
+
+        internal static OrderPosition SideConverter(OrderSide side)
         {
             return side switch
             {
@@ -233,7 +288,7 @@ namespace PMM.Core.Provider.Exchange_Binance
             };
         }
 
-        private static OrderSide SideConverter(OrderPosition side)
+        internal static OrderSide SideConverter(OrderPosition side)
         {
             return side switch
             {
@@ -243,7 +298,7 @@ namespace PMM.Core.Provider.Exchange_Binance
             };
         }
 
-        private static OrderStatusType StatusConverter(OrderStatus status)
+        internal static OrderStatusType StatusConverter(OrderStatus status)
         {
             return status switch
             {

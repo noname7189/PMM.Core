@@ -6,9 +6,9 @@ namespace PMM.Core.Provider.DataClass.Stream
     public class StreamEvent
     {
         [JsonProperty("e")]
-        public string Event { get; set; } = string.Empty;
+        public required string Event { get; set; } = string.Empty;
         [JsonProperty("E"), JsonConverter(typeof(DateTimeConverter))]
-        public DateTime EventTime { get; set; }
+        public required DateTime EventTime { get; set; }
 
     }
 }

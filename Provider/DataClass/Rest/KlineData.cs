@@ -1,4 +1,4 @@
-﻿namespace PMM.Core.Provider.DataClass.Stream
+﻿namespace PMM.Core.Provider.DataClass.Rest
 {
     public class KlineData
     {

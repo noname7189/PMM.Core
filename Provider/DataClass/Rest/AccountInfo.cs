@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using PMM.Core.Provider.Converter;
 
-namespace PMM.Core.Provider.DataClass
+namespace PMM.Core.Provider.DataClass.Rest
 {
     public class AccountInfo
     {

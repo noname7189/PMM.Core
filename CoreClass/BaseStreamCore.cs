@@ -1,14 +1,10 @@
-﻿using Binance.Net.Enums;
-using Binance.Net.Interfaces;
-using Binance.Net.Objects.Models.Futures.Socket;
-using CryptoExchange.Net.Sockets;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
 using PMM.Core.Interface;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Enum;
-using System.IO;
+using PMM.Core.Provider.Interface;
 
 namespace PMM.Core.CoreClass
 {
@@ -17,15 +13,13 @@ namespace PMM.Core.CoreClass
         #region Public Property
         public readonly List<C> Candles = [];
         public readonly List<C> CandleAdders = [];
-        public override List<Action<OrderResult>> OrderCallbackList { get => _orderCallbackList; }
-
+        public override List<Action<OrderStreamData>> OrderCallbackList { get => _orderCallbackList; }
         #endregion
 
         #region Private Property
         private readonly List<IStrategy> _strategyList = [];
         private readonly object LockObj = new();
-        private readonly List<Action<OrderResult>> _orderCallbackList = [];
-
+        private readonly List<Action<OrderStreamData>> _orderCallbackList = [];
 
         // InitEvent
         private event Action Chain_PreStrategyInit = delegate { };
@@ -148,14 +142,14 @@ namespace PMM.Core.CoreClass
             return this;
         }
 
-        internal override void BindStrategy()
+        internal override void BindStrategy(IRestClientAdapter adapter)
         {
             foreach (var strategy in _strategyList)
             {
                 strategy.SetStreamCore(this);
                 BindInitProcess(strategy);
                 BindOnlineProcess(strategy);
-                Action<OrderResult>? callback = strategy.ProcessOnOrderUpdate();
+                Action<OrderStreamData>? callback = strategy.ProcessOnOrderUpdate();
                 if (callback != null)
                 {
                     OrderCallbackList.Add(callback);

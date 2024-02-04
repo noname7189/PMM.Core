@@ -1,18 +1,10 @@
-﻿using Binance.Net.Clients;
-using Binance.Net.Enums;
-using Binance.Net.Objects.Models;
+﻿using Binance.Net.Objects.Models;
 using Binance.Net.Objects.Models.Futures;
 using Binance.Net.Objects.Models.Futures.Socket;
-using CryptoExchange.Net.Authentication;
 using CryptoExchange.Net.Sockets;
-using Microsoft.EntityFrameworkCore;
-using PMM.Core.EntityClass;
-using PMM.Core.Enum;
-using PMM.Core.Utils;
-using PMM.Core.Interface;
 using PMM.Core.Provider;
 using PMM.Core.Provider.Enum;
-using PMM.Core.Provider.Exchange_Binance;
+using PMM.Core.Provider.Impl;
 using PMM.Core.Provider.Binance;
 using PMM.Core.Provider.Interface;
 using PMM.Core.Provider.DataClass;
@@ -88,7 +80,7 @@ namespace PMM.Core.CoreClass
         {
             foreach (BaseProvider provider in _providerList)
             {
-                provider.Init().Wait();
+                provider.Init(provider).Wait();
                 provider.StartStream().Wait();
             }
 

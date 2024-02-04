@@ -1,9 +1,8 @@
-﻿using Binance.Net.Enums;
-using Binance.Net.Interfaces;
-using PMM.Core.EntityClass;
+﻿using PMM.Core.EntityClass;
 using PMM.Core.Enum;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Enum;
+using PMM.Core.Provider.Interface;
 
 namespace PMM.Core.Interface
 {
@@ -12,7 +11,7 @@ namespace PMM.Core.Interface
         #region Property
         public abstract Symbol Symbol { get; }
         public abstract Interval Interval { get; }
-        public abstract List<Action<OrderResult>> OrderCallbackList { get; }
+        public abstract List<Action<OrderStreamData>> OrderCallbackList { get; }
         #endregion
         #region Util
         internal abstract bool Exists(Symbol symbol, Interval interval);
@@ -27,7 +26,7 @@ namespace PMM.Core.Interface
         public abstract void InitStreamWithAdditionalCandles();
 
         #region Interface Declaration
-        internal abstract void BindStrategy();
+        internal abstract void BindStrategy(IRestClientAdapter adapter);
         internal abstract void ExecuteChain_TryToMakeNewIndicator();
         internal abstract void ExecuteChain_ProcessWithSameCandle(KlineStreamData klines);
         internal abstract void ExecuteChain_ProcessWithDifferentCandle(KlineStreamData klines, BaseCandle prevCandle);

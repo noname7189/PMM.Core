@@ -1,13 +1,11 @@
 ﻿using PMM.Core.Interface;
-using Microsoft.EntityFrameworkCore;
 using PMM.Core.CoreClass;
-using PMM.Core.EntityClass;
 using PMM.Core.Utils;
 using PMM.Core.Enum;
 using PMM.Core.Provider.Enum;
-using PMM.Core.Provider.DataClass;
 using PMM.Core.Provider.Interface;
 using PMM.Core.Provider.DataClass.Stream;
+using PMM.Core.Provider.DataClass.Rest;
 
 namespace PMM.Core.Provider
 {
@@ -20,8 +18,8 @@ namespace PMM.Core.Provider
         internal readonly int BaseCandleCount = StrategyManager.Instance.BaseCandleCount;
         internal readonly int InitCandleCount = StrategyManager.Instance.InitCandleCount;
         protected readonly List<IStreamCore> _streamCoreList = [];
-        protected event Action<OrderResult> Chain_OnOrderUpdate = null;
-        protected Action<AccountUpdateData>? OnAccountUpdate { get; set; } = null;
+        protected event Action<OrderStreamData>? Chain_OnOrderUpdate = null;
+        protected Action<AccountStreamData>? OnAccountUpdate { get; set; } = null;
         protected Action<AccountInfo>? OnGetAccountInfo { get; set; } = null;
         protected Action<StreamEvent>? OnListenKeyExpired { get; set; } = null;
 
@@ -61,6 +59,7 @@ namespace PMM.Core.Provider
                 if (core.Exists(adder.Symbol, adder.Interval)) throw new ArgumentException($"Stream core with symbol: {adder.Symbol}, interval: {adder.Interval} already exists");
             }
 
+            
             _streamCoreList.Add(adder);
 
             return adder;
@@ -83,7 +82,7 @@ namespace PMM.Core.Provider
 
             }
         }
-        internal async Task Init()
+        internal async Task Init(IRestClientAdapter adapter)
         {
             InitContext();
 
@@ -91,14 +90,13 @@ namespace PMM.Core.Provider
             await GetAccountInfoAsync();
             ListenKey = await GetListenKey() ?? throw new Exception("Listenkey Error");
 
-            // TODO : Detach BinanceClient
             KeepAliveScheduler.Run(ListenKey);
 
             BindOrderUpdateProcess();
 
             foreach (var core in _streamCoreList)
             {
-                core.BindStrategy();
+                core.BindStrategy(adapter);
 
                 core.PreStreamInit();
                 core.ExecuteChain_PreStrategyInit();
@@ -122,14 +120,17 @@ namespace PMM.Core.Provider
 
             DisposeContext();
         }
-        protected Action<OrderResult>? OnOrderUpdate()
+        protected void OnOrderUpdate(OrderStreamData data)
         {
-            return Chain_OnOrderUpdate != null ?
-                (OrderResult data) =>
-                {
-                    Chain_OnOrderUpdate.Invoke(data);
-                }
-            : null;
+            if (Chain_OnOrderUpdate == null) return;
+
+            Chain_OnOrderUpdate.Invoke(data);
+        }
+
+        protected bool CheckChainOnOrderUpdate()
+        {
+            if (Chain_OnOrderUpdate == null) return false;
+            return true;
         }
 
         public async Task StartStream()

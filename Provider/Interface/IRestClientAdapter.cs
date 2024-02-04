@@ -1,11 +1,10 @@
 ﻿using PMM.Core.Enum;
-using PMM.Core.Provider.DataClass;
-using PMM.Core.Provider.DataClass.Stream;
+using PMM.Core.Provider.DataClass.Rest;
 using PMM.Core.Provider.Enum;
 
 namespace PMM.Core.Provider.Interface
 {
-    internal interface IRestClientAdapter
+    public interface IRestClientAdapter
     {
         // StartUserStreamAsync
         Task<string?> GetListenKey();
