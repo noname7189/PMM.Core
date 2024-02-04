@@ -1,9 +1,9 @@
 ﻿using Binance.Net.Enums;
 using Binance.Net.Interfaces;
-using Binance.Net.Objects.Models.Futures.Socket;
-using CryptoExchange.Net.Sockets;
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
+using PMM.Core.Provider.DataClass.Stream;
+using PMM.Core.Provider.Enum;
 
 namespace PMM.Core.Interface
 {
@@ -11,26 +11,26 @@ namespace PMM.Core.Interface
     {
         #region Property
         public abstract Symbol Symbol { get; }
-        public abstract KlineInterval Interval { get; }
-        public abstract List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> OrderCallbackList { get; }
+        public abstract Interval Interval { get; }
+        public abstract List<Action<OrderResult>> OrderCallbackList { get; }
         #endregion
         #region Util
-        internal abstract bool Exists(Symbol symbol, KlineInterval interval);
+        internal abstract bool Exists(Symbol symbol, Interval interval);
         internal abstract bool AddedCandleExists();
         #endregion
         public abstract IStreamCore AddStrategy<S>() where S : IStrategy, new();
         public abstract void PreStreamInit();
         public abstract void PostStreamInit();
-        public abstract Action<IEnumerable<IBinanceKline>> OnGetBaseCandle();
-        public abstract Action<DataEvent<IBinanceStreamKlineData>> OnGetStreamData();
+        public abstract Action<List<KlineStreamData>> OnGetBaseCandle();
+        public abstract Action<KlineStreamData> OnGetStreamData();
         public abstract void InitStreamWithoutAdditionalCandles();
         public abstract void InitStreamWithAdditionalCandles();
 
         #region Interface Declaration
         internal abstract void BindStrategy();
         internal abstract void ExecuteChain_TryToMakeNewIndicator();
-        internal abstract void ExecuteChain_ProcessWithSameCandle(IBinanceStreamKline klines);
-        internal abstract void ExecuteChain_ProcessWithDifferentCandle(IBinanceStreamKline klines, BaseCandle prevCandle);
+        internal abstract void ExecuteChain_ProcessWithSameCandle(KlineStreamData klines);
+        internal abstract void ExecuteChain_ProcessWithDifferentCandle(KlineStreamData klines, BaseCandle prevCandle);
         internal abstract void ExecuteChain_PreStrategyInit();
         internal abstract void ExecuteChain_InitStrategyWithoutAdditionalCandles();
         internal abstract void ExecuteChain_InitStrategyWithAdditionalCandles();

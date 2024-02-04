@@ -1,11 +1,9 @@
-﻿using Binance.Net.Interfaces;
-using Binance.Net.Objects.Models.Futures.Socket;
-using CryptoExchange.Net.Sockets;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PMM.Core.DataClass;
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
 using PMM.Core.Interface;
+using PMM.Core.Provider.DataClass.Stream;
 
 namespace PMM.Core.CoreClass
 {
@@ -59,10 +57,10 @@ namespace PMM.Core.CoreClass
         public abstract void PostStrategyInit();
         public abstract void ProcessEnter(decimal enterPrice, BaseSignal target);
         public abstract void ProcessLosscut(DateTime exitTime, BaseSignal target);
-        public abstract Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? ProcessOnOrderUpdate();
+        public abstract Action<OrderResult>? ProcessOnOrderUpdate();
         public abstract void ProcessTakeProfit(decimal exitPrice, DateTime exitTime);
-        public abstract void ProcessWithDifferentCandle(IBinanceStreamKline klines, BaseCandle prevCandle);
-        public abstract void ProcessWithSameCandle(IBinanceStreamKline klines);
+        public abstract void ProcessWithDifferentCandle(KlineStreamData klines, BaseCandle prevCandle);
+        public abstract void ProcessWithSameCandle(KlineStreamData klines);
         public abstract void TryToMakeNewIndicator();
         public abstract S? TryToMakeNewSignal();
 

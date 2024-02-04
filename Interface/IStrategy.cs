@@ -7,6 +7,7 @@ using PMM.Core.CoreClass;
 using PMM.Core.DataClass;
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
+using PMM.Core.Provider.DataClass.Stream;
 
 namespace PMM.Core.Interface
 {
@@ -36,8 +37,8 @@ namespace PMM.Core.Interface
     {
         public void TryToMakeNewIndicator();
         public void TryToMakeNewIndicatorWrapper();
-        public void ProcessWithSameCandle(IBinanceStreamKline klines);
-        public void ProcessWithDifferentCandle(IBinanceStreamKline klines, BaseCandle prevCandle);
+        public void ProcessWithSameCandle(KlineStreamData klines);
+        public void ProcessWithDifferentCandle(KlineStreamData klines, BaseCandle prevCandle);
     }
 
     public interface IOrderProcess
@@ -45,7 +46,7 @@ namespace PMM.Core.Interface
         public void ProcessEnter(decimal enterPrice, BaseSignal target);
         public void ProcessTakeProfit(decimal exitPrice, DateTime exitTime);
         public void ProcessLosscut(DateTime exitTime, BaseSignal target);
-        public Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? ProcessOnOrderUpdate();
+        public Action<OrderResult>? ProcessOnOrderUpdate();
     }
 
     public interface IStrategy : IInitProcess, IOnlineProcess, IOrderProcess

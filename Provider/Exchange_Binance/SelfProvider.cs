@@ -1,20 +1,22 @@
 ﻿using PMM.Core.Enum;
 using PMM.Core.Provider.DataClass;
+using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Enum;
 
 namespace PMM.Core.Provider.Binance
 {
     internal class SelfProvider : BaseProvider
     {
+        internal override void CreateContext(ProviderType type)
+        {
+
+        }
+
         public override Task<OrderResult?> CancelOrderAsync(Symbol symbol, long orderId)
         {
             throw new NotImplementedException();
         }
 
-        public override void CreateContext(ProviderType type)
-        {
-            throw new NotImplementedException();
-        }
 
         public override Task<AccountInfo?> GetAccountInfoAsync()
         {
@@ -31,7 +33,7 @@ namespace PMM.Core.Provider.Binance
             throw new NotImplementedException();
         }
 
-        public override void InitContext()
+        internal override void InitContext()
         {
             throw new NotImplementedException();
         }
@@ -41,7 +43,7 @@ namespace PMM.Core.Provider.Binance
             throw new NotImplementedException();
         }
 
-        public override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineData> onGetStreamData)
+        public override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamData> onGetStreamData)
         {
             throw new NotImplementedException();
         }

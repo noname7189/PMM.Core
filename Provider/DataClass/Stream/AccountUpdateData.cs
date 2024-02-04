@@ -1,6 +1,6 @@
 ﻿using PMM.Core.Provider.Enum;
 
-namespace PMM.Core.Provider.DataClass
+namespace PMM.Core.Provider.DataClass.Stream
 {
     public class AccountUpdateData
     {

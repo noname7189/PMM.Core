@@ -1,9 +1,4 @@
-﻿using Binance.Net.Objects.Models.Futures.Socket;
-using Binance.Net.Objects.Models.Futures;
-using Binance.Net.Objects.Models;
-using CryptoExchange.Net.Sockets;
-using PMM.Core.Interface;
-using Binance.Net.Enums;
+﻿using PMM.Core.Interface;
 using Microsoft.EntityFrameworkCore;
 using PMM.Core.CoreClass;
 using PMM.Core.EntityClass;
@@ -12,31 +7,31 @@ using PMM.Core.Enum;
 using PMM.Core.Provider.Enum;
 using PMM.Core.Provider.DataClass;
 using PMM.Core.Provider.Interface;
+using PMM.Core.Provider.DataClass.Stream;
 
 namespace PMM.Core.Provider
 {
     internal abstract class BaseProvider : IProvider, IRestClientAdapter, ISocketClientAdapter
     {
         #region Private Property
-        private bool Initialized { get; set; } = false;
         protected string ListenKey { get; set; } = "";
-        private string PublicKey { get; set; } = "";
-        internal int BaseCandleCount { get; set; }
-        internal int InitCandleCount { get; set; }
-        internal string SecretKey { get; set; } = "";
+        public string PublicKey { get; set; } = "";
+        public string SecretKey { get; set; } = "";
+        internal readonly int BaseCandleCount = StrategyManager.Instance.BaseCandleCount;
+        internal readonly int InitCandleCount = StrategyManager.Instance.InitCandleCount;
         protected readonly List<IStreamCore> _streamCoreList = [];
-        protected event Action<DataEvent<BinanceFuturesStreamOrderUpdate>> Chain_OnOrderUpdate = null;
-        protected Action<DataEvent<BinanceFuturesStreamAccountUpdate>>? OnAccountUpdate { get; set; } = null;
+        protected event Action<OrderResult> Chain_OnOrderUpdate = null;
+        protected Action<AccountUpdateData>? OnAccountUpdate { get; set; } = null;
         protected Action<AccountInfo>? OnGetAccountInfo { get; set; } = null;
-        protected Action<DataEvent<BinanceStreamEvent>>? OnListenKeyExpired { get; set; } = null;
+        protected Action<StreamEvent>? OnListenKeyExpired { get; set; } = null;
 
         protected dynamic? ClientContext { get; set; }
         #endregion
 
         #region Abstract
-        public abstract void CreateContext(ProviderType type);
-        public abstract void InitContext();
-        public void DisposeContext()
+        internal abstract void CreateContext(ProviderType type);
+        internal abstract void InitContext();
+        internal void DisposeContext()
         {
             if (ClientContext != null && ClientContext is IDisposable)
             {
@@ -54,7 +49,7 @@ namespace PMM.Core.Provider
 
         // SocketClient
         public abstract Task SubscribeToUserDataUpdatesAsync();
-        public abstract Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineData> onGetStreamData);
+        public abstract Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamData> onGetStreamData);
         #endregion
 
         #region Public Method
@@ -73,17 +68,6 @@ namespace PMM.Core.Provider
         #endregion
 
         #region Private Method
-        private BaseStreamCore<X, C> GetStreamCoreFromSymbolAndInterval<X, C>(Symbol symbol, KlineInterval interval)
-            where X : DbContext, new()
-            where C : BaseCandle, new()
-        {
-            foreach (var core in _streamCoreList)
-            {
-                if (core.Exists(symbol, interval)) return (BaseStreamCore<X, C>)core;
-            }
-
-            throw new ArgumentException($"No StreamCore with symbol: {symbol}, interval: {interval}");
-        }
         private void BindOrderUpdateProcess()
         {
             foreach (var core in _streamCoreList)
@@ -99,9 +83,9 @@ namespace PMM.Core.Provider
 
             }
         }
-        private async Task Init()
+        internal async Task Init()
         {
-            if (Initialized == false) throw new Exception("No Provided StrategyManagerOptions");
+            InitContext();
 
             CreateContext(ProviderType.Rest);
             await GetAccountInfoAsync();
@@ -119,7 +103,7 @@ namespace PMM.Core.Provider
                 core.PreStreamInit();
                 core.ExecuteChain_PreStrategyInit();
 
-                await GetKlinesAsync(core.Symbol, core.Interval.ToInterval(), InitCandleCount);
+                await GetKlinesAsync(core.Symbol, core.Interval, InitCandleCount);
 
                 if (core.AddedCandleExists())
                 {
@@ -138,17 +122,17 @@ namespace PMM.Core.Provider
 
             DisposeContext();
         }
-        protected Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? OnOrderUpdate()
+        protected Action<OrderResult>? OnOrderUpdate()
         {
             return Chain_OnOrderUpdate != null ?
-                (DataEvent<BinanceFuturesStreamOrderUpdate> data) =>
+                (OrderResult data) =>
                 {
                     Chain_OnOrderUpdate.Invoke(data);
                 }
             : null;
         }
 
-        private async Task StartStream()
+        public async Task StartStream()
         {
             CreateContext(ProviderType.Socket);
             await SubscribeToUserDataUpdatesAsync();
@@ -156,7 +140,7 @@ namespace PMM.Core.Provider
             foreach (var core in _streamCoreList)
             {
                 // TODO : OnGetStreamData - from Action<DataEvent<IBinanceStreamKlineData>> to Action<KlineData>
-                await SubscribeToKlineUpdatesAsync(core.Symbol, core.Interval.ToInterval(), core.OnGetStreamData);
+                await SubscribeToKlineUpdatesAsync(core.Symbol, core.Interval, core.OnGetStreamData());
             }
 
             DisposeContext();

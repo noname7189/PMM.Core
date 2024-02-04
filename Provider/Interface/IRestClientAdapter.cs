@@ -1,5 +1,6 @@
 ﻿using PMM.Core.Enum;
 using PMM.Core.Provider.DataClass;
+using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Enum;
 
 namespace PMM.Core.Provider.Interface

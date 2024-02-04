@@ -6,6 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
 using PMM.Core.Interface;
+using PMM.Core.Provider.DataClass.Stream;
+using PMM.Core.Provider.Enum;
+using System.IO;
 
 namespace PMM.Core.CoreClass
 {
@@ -14,14 +17,14 @@ namespace PMM.Core.CoreClass
         #region Public Property
         public readonly List<C> Candles = [];
         public readonly List<C> CandleAdders = [];
-        public override List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> OrderCallbackList { get => _orderCallbackList; }
+        public override List<Action<OrderResult>> OrderCallbackList { get => _orderCallbackList; }
 
         #endregion
 
         #region Private Property
         private readonly List<IStrategy> _strategyList = [];
         private readonly object LockObj = new();
-        private readonly List<Action<DataEvent<BinanceFuturesStreamOrderUpdate>>> _orderCallbackList = [];
+        private readonly List<Action<OrderResult>> _orderCallbackList = [];
 
 
         // InitEvent
@@ -32,8 +35,8 @@ namespace PMM.Core.CoreClass
 
         // OnlineEvent
         private event Action Chain_TryToMakeNewIndicator = delegate { };
-        private event Action<IBinanceStreamKline> Chain_ProcessWithSameCandle = delegate { };
-        private event Action<IBinanceStreamKline, BaseCandle> Chain_ProcessWithDifferentCandle = delegate { };
+        private event Action<KlineStreamData> Chain_ProcessWithSameCandle = delegate { };
+        private event Action<KlineStreamData, BaseCandle> Chain_ProcessWithDifferentCandle = delegate { };
         #endregion
 
         #region Public Method
@@ -41,7 +44,7 @@ namespace PMM.Core.CoreClass
         {
             return CandleAdders.Count > 0;
         }
-        internal override bool Exists(Symbol symbol, KlineInterval interval)
+        internal override bool Exists(Symbol symbol, Interval interval)
         {
             return Symbol == symbol && Interval == interval;
         }
@@ -94,7 +97,7 @@ namespace PMM.Core.CoreClass
             Candles.RemoveRange(0, Candles.Count - StrategyManager.Instance.BaseCandleCount);
         }
 
-        public sealed override Action<IEnumerable<IBinanceKline>> OnGetBaseCandle() => (klines) =>
+        public sealed override Action<List<KlineStreamData>> OnGetBaseCandle() => (klines) =>
         {
             if (Candles.Count == 0) throw new ArgumentException("StreamCore has not been initialized!");
             //if (Candles.Count == 0) return;
@@ -108,19 +111,19 @@ namespace PMM.Core.CoreClass
                 {
                     CandleAdders.Add(new C() 
                     { 
-                        Time = kline.OpenTime.AddHours(9),
-                        Open = kline.OpenPrice,
-                        High = kline.HighPrice,
-                        Low = kline.LowPrice,
-                        Close = kline.ClosePrice,
+                        Time = kline.StartTime.AddHours(9),
+                        Open = kline.Open,
+                        High = kline.High,
+                        Low = kline.Low,
+                        Close = kline.Close,
                         Volume = kline.Volume
                     });
 
-                    targetTime = kline.CloseTime;
+                    targetTime = kline.EndTime;
                 }
                 else
                 {
-                    if (targetTime == kline.OpenTime.AddHours(9)) found = true;
+                    if (targetTime == kline.StartTime.AddHours(9)) found = true;
                 }
             }
 
@@ -152,7 +155,7 @@ namespace PMM.Core.CoreClass
                 strategy.SetStreamCore(this);
                 BindInitProcess(strategy);
                 BindOnlineProcess(strategy);
-                Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? callback = strategy.ProcessOnOrderUpdate();
+                Action<OrderResult>? callback = strategy.ProcessOnOrderUpdate();
                 if (callback != null)
                 {
                     OrderCallbackList.Add(callback);
@@ -184,18 +187,17 @@ namespace PMM.Core.CoreClass
         {
             Chain_TryToMakeNewIndicator.Invoke();
         }
-        internal override void ExecuteChain_ProcessWithSameCandle(IBinanceStreamKline klines)
+        internal override void ExecuteChain_ProcessWithSameCandle(KlineStreamData klines)
         {
             Chain_ProcessWithSameCandle.Invoke(klines);
         }
-        internal override void ExecuteChain_ProcessWithDifferentCandle(IBinanceStreamKline klines, BaseCandle prevCandle)
+        internal override void ExecuteChain_ProcessWithDifferentCandle(KlineStreamData klines, BaseCandle prevCandle)
         {
             Chain_ProcessWithDifferentCandle.Invoke(klines, prevCandle);
         }
-        public sealed override Action<DataEvent<IBinanceStreamKlineData>> OnGetStreamData() => (stream) =>
+        public sealed override Action<KlineStreamData> OnGetStreamData() => (stream) =>
         {
-            IBinanceStreamKline klines = stream.Data.Data;
-
+            KlineStreamData klines = stream;
             C? prevCandle = null;
 
             lock (LockObj)
@@ -208,11 +210,11 @@ namespace PMM.Core.CoreClass
                 {
                     prevCandle = new()
                     {
-                        Time = klines.OpenTime.AddHours(9),
-                        Open = klines.OpenPrice,
-                        High = klines.HighPrice,
-                        Low = klines.LowPrice,
-                        Close = klines.ClosePrice,
+                        Time = klines.StartTime.AddHours(9),
+                        Open = klines.Open,
+                        High = klines.High,
+                        Low = klines.Low,
+                        Close = klines.Close,
                         Volume = klines.Volume
                     };
 

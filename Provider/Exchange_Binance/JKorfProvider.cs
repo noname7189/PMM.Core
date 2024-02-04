@@ -5,15 +5,17 @@ using Binance.Net.Interfaces;
 using PMM.Core.Utils;
 using CryptoExchange.Net.Sockets;
 using PMM.Core.Provider.DataClass;
-using CryptoExchange.Net.CommonObjects;
 using Symbol = PMM.Core.Enum.Symbol;
 using CryptoExchange.Net.Objects;
 using Binance.Net.Enums;
+using PMM.Core.Provider.DataClass.Stream;
+using CryptoExchange.Net.Authentication;
 
 namespace PMM.Core.Provider.Exchange_Binance
 {
     internal class JKorfProvider : BaseProvider
-    {        public override void CreateContext(ProviderType type)
+    {        
+        internal override void CreateContext(ProviderType type)
         {
             if (type == ProviderType.Rest)
             {
@@ -67,7 +69,6 @@ namespace PMM.Core.Provider.Exchange_Binance
                         res.Add(new KlineData()
                         {
                             StartTime = item.OpenTime,
-                            EndTime = item.CloseTime,
                             Open = item.OpenPrice,
                             High = item.HighPrice,
                             Low = item.LowPrice,
@@ -80,9 +81,7 @@ namespace PMM.Core.Provider.Exchange_Binance
                     
                     return res;
                 }
-
             }
-
             return null;
         }
 
@@ -100,10 +99,19 @@ namespace PMM.Core.Provider.Exchange_Binance
             return null;
         }
 
-        public override void InitContext()
+        internal override void InitContext()
         {
-            throw new NotImplementedException();
+            ApiCredentials credentials = new(PublicKey, SecretKey);
+            BinanceRestClient.SetDefaultOptions(opt =>
+            {
+                opt.ApiCredentials = credentials;
+            });
+            BinanceSocketClient.SetDefaultOptions(opt =>
+            {
+                opt.ApiCredentials = credentials;
+            });
         }
+
         public async override Task<OrderResult?> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity)
         {
             using var client = new BinanceRestClient();
@@ -170,9 +178,7 @@ namespace PMM.Core.Provider.Exchange_Binance
             return null;            
         }
 
-
-
-        public async override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineData> onGetStreamData)
+        public async override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamData> onGetStreamData)
         {
 
             if (ClientContext is BinanceSocketClient)
@@ -180,7 +186,7 @@ namespace PMM.Core.Provider.Exchange_Binance
                 Action<DataEvent<IBinanceStreamKlineData>> handler = (data) =>
                 {
                     IBinanceStreamKline data1 = data.Data.Data;
-                    onGetStreamData(new KlineData()
+                    onGetStreamData(new KlineStreamData()
                     {
                         StartTime = data1.OpenTime,
                         EndTime = data1.CloseTime,
@@ -191,6 +197,7 @@ namespace PMM.Core.Provider.Exchange_Binance
                         Volume = data1.Volume,
                         QuoteVolume = data1.QuoteVolume,
                         TradeCount = data1.TradeCount,
+                        Final = data1.Final,
                     });
                 };
 
@@ -247,6 +254,5 @@ namespace PMM.Core.Provider.Exchange_Binance
                 _ => OrderStatusType.Others,
             };
         }
-
     }
 }
