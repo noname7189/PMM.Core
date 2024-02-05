@@ -12,6 +12,7 @@ using PMM.Core.Provider.DataClass.Rest;
 using Binance.Net.Objects.Models.Futures.Socket;
 using Binance.Net.Objects.Models;
 using Symbol = PMM.Core.Enum.Symbol;
+using System.Net;
 
 namespace PMM.Core.Provider.Impl
 {
@@ -29,7 +30,6 @@ namespace PMM.Core.Provider.Impl
                 opt.ApiCredentials = credentials;
             });
         }
-
         internal override void CreateContext(ProviderType type)
         {
             if (type == ProviderType.Rest)
@@ -43,9 +43,7 @@ namespace PMM.Core.Provider.Impl
             }
             else throw new NotImplementedException();
         }
-
-
-        public async override Task<AccountInfo?> GetAccountInfoAsync()
+        public async override Task<Response<AccountInfo>> GetAccountInfoAsync()
         {
             if (ClientContext is BinanceRestClient)
             {
@@ -54,7 +52,7 @@ namespace PMM.Core.Provider.Impl
                 {
                     BinanceFuturesAccountInfo data1 = result.Data;
 
-                    return new AccountInfo
+                    AccountInfo data = new()
                     {
                         TotalInitialMargin = data1.TotalInitialMargin,
                         TotalMarginBalance = data1.TotalMarginBalance,
@@ -64,13 +62,15 @@ namespace PMM.Core.Provider.Impl
                         AvailableBalance = data1.AvailableBalance,
                         UpdateTime = data1.UpdateTime,
                     };
-                }
-            }
 
-            return null;
+                    return Success(data);
+                }
+                else return Failure<AccountInfo>((HttpStatusCode)result.ResponseStatusCode!, result.Error!.Message);
+            }
+            else throw new Exception("ClientContext is not BinanceRestClient");
         }
 
-        public async override Task<List<KlineData>?> GetKlinesAsync(Symbol symbol, Interval interval, int? limit)
+        public async override Task<Response<List<KlineData>>> GetKlinesAsync(Symbol symbol, Interval interval, int? limit)
         {
             if (ClientContext is BinanceRestClient)
             {
@@ -89,33 +89,36 @@ namespace PMM.Core.Provider.Impl
                             Low = item.LowPrice,
                             Close = item.ClosePrice,
                             Volume = item.Volume,
-                            QuoteVolume = item.QuoteVolume,
                             TradeCount = item.TradeCount,
                         });
                     }
-                    
-                    return res;
+                    return Success(res);
+                }
+                else
+                {
+                    return Failure<List<KlineData>>((HttpStatusCode)result.ResponseStatusCode!, result.Error!.Message);
                 }
             }
-            return null;
+            else throw new Exception("ClientContext is not BinanceRestClient");
         }
 
-        public override async Task<string?> GetListenKey()
+
+        public override async Task<Response<string>> GetListenKey()
         {
             if (ClientContext is BinanceRestClient)
             {
                 WebCallResult<string> result = await ClientContext.UsdFuturesApi.Account.StartUserStreamAsync();
                 if (result.Success)
                 {
-                    return result.Data;
+                    return Success(result.Data);
                 }
+                else return Failure<string>((HttpStatusCode)result.ResponseStatusCode, result.Error.Message);
             }
-
-            return null;
+            else throw new Exception("ClientContext is not BinanceRestClient");
         }
 
 
-        public async override Task<OrderResult?> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity)
+        public async override Task<Response<OrderResult>> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity)
         {
             using var client = new BinanceRestClient();
 
@@ -131,7 +134,7 @@ namespace PMM.Core.Provider.Impl
             {
                 BinanceUsdFuturesOrder data = orderData.Data;
 
-                return new()
+                OrderResult res = new()
                 {
                     OrderId = data.Id,
                     TradeId = null,
@@ -147,12 +150,13 @@ namespace PMM.Core.Provider.Impl
                     UpdateTime = data.UpdateTime,
                     CreateTime = data.CreateTime,
                 };
-            }
 
-            return null;
+                return Success(res);
+            }
+            else return Failure<OrderResult>((HttpStatusCode)orderData.ResponseStatusCode, orderData.Error?.Message);
         }
 
-        public async override Task<OrderResult?> CancelOrderAsync(Symbol symbol, long orderId)
+        public async override Task<Response<OrderResult>> CancelOrderAsync(Symbol symbol, long orderId)
         {
             using var client = new BinanceRestClient();
 
@@ -162,7 +166,7 @@ namespace PMM.Core.Provider.Impl
             {
                 BinanceUsdFuturesOrder data = cancelData.Data;
 
-                return new()
+                OrderResult res = new()
                 {
                     OrderId = data.Id,
                     TradeId = null,
@@ -178,9 +182,9 @@ namespace PMM.Core.Provider.Impl
                     UpdateTime = data.UpdateTime,
                     CreateTime = data.CreateTime,
                 };
+                return Success(res);
             }
-
-            return null;            
+            else return Failure<OrderResult>((HttpStatusCode)cancelData.ResponseStatusCode!, cancelData.Error!.Message); 
         }
 
         public async override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamData> onGetStreamData)
@@ -199,7 +203,6 @@ namespace PMM.Core.Provider.Impl
                         Low = data1.LowPrice,
                         Close = data1.ClosePrice,
                         Volume = data1.Volume,
-                        QuoteVolume = data1.QuoteVolume,
                         TradeCount = data1.TradeCount,
                         Final = data1.Final,
                     });
@@ -210,7 +213,6 @@ namespace PMM.Core.Provider.Impl
                 {
                     throw new Exception($"Subscribe for \"{symbol}\" is failed");
                 }
-
             }
         }
 
@@ -257,6 +259,28 @@ namespace PMM.Core.Provider.Impl
                 }
             }
         }
+
+        private static Response<T> Success<T>(T data) where T : class
+        {
+            return new()
+            {
+                StatusCode = HttpStatusCode.OK,
+                Msg = null,
+                Data = data
+            };
+        }
+
+        private static Response<T> Failure<T>(HttpStatusCode code, string msg) where T : class
+        {
+            return new()
+            {
+                StatusCode = code,
+                Msg = msg,
+                Data = null
+            };
+        }
+
+
 
         internal static Symbol SymbolConverter(string symbol)
         {

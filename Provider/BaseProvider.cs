@@ -13,15 +13,15 @@ namespace PMM.Core.Provider
     {
         #region Private Property
         protected string ListenKey { get; set; } = "";
-        public string PublicKey { get; set; } = "";
-        public string SecretKey { get; set; } = "";
+        public string PublicKey { get; set; }
+        public string SecretKey { get; set; }
         internal readonly int BaseCandleCount = StrategyManager.Instance.BaseCandleCount;
         internal readonly int InitCandleCount = StrategyManager.Instance.InitCandleCount;
         protected readonly List<IStreamCore> _streamCoreList = [];
         protected event Action<OrderStreamData>? Chain_OnOrderUpdate = null;
-        protected Action<AccountStreamData>? OnAccountUpdate { get; set; } = null;
-        protected Action<AccountInfo>? OnGetAccountInfo { get; set; } = null;
-        protected Action<StreamEvent>? OnListenKeyExpired { get; set; } = null;
+        protected Action<AccountStreamData>? OnAccountUpdate { get; set; }
+        protected Action<AccountInfo>? OnGetAccountInfo { get; set; }
+        protected Action<StreamEvent>? OnListenKeyExpired { get; set; }
 
         protected dynamic? ClientContext { get; set; }
         #endregion
@@ -39,11 +39,11 @@ namespace PMM.Core.Provider
             ClientContext = null;
         }
         // RestClient
-        public abstract Task<string?> GetListenKey();
-        public abstract Task<AccountInfo?> GetAccountInfoAsync();
-        public abstract Task<List<KlineData>?> GetKlinesAsync(Symbol symbol, Interval interval, int? limit);
-        public abstract Task<OrderResult?> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity);
-        public abstract Task<OrderResult?> CancelOrderAsync(Symbol symbol, long orderId);
+        public abstract Task<Response<string>> GetListenKey();
+        public abstract Task<Response<AccountInfo>> GetAccountInfoAsync();
+        public abstract Task<Response<List<KlineData>>> GetKlinesAsync(Symbol symbol, Interval interval, int? limit);
+        public abstract Task<Response<OrderResult>> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity);
+        public abstract Task<Response<OrderResult>> CancelOrderAsync(Symbol symbol, long orderId);
 
         // SocketClient
         public abstract Task SubscribeToUserDataUpdatesAsync();
@@ -87,8 +87,12 @@ namespace PMM.Core.Provider
             InitContext();
 
             CreateContext(ProviderType.Rest);
-            await GetAccountInfoAsync();
-            ListenKey = await GetListenKey() ?? throw new Exception("Listenkey Error");
+            AccountInfo? accountInfo = (await GetAccountInfoAsync()).Data;
+            if (accountInfo != null) {
+                OnGetAccountInfo?.Invoke(accountInfo);
+            }
+
+            ListenKey = (await GetListenKey()).Data ?? throw new Exception("Listenkey Error");
 
             KeepAliveScheduler.Run(ListenKey);
 

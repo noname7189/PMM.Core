@@ -3,7 +3,7 @@ using PMM.Core.Provider.Converter;
 
 namespace PMM.Core.Provider.DataClass.Rest
 {
-    public class AccountInfo
+    public record AccountInfo
     {
         public decimal TotalInitialMargin;
         public decimal TotalMarginBalance;

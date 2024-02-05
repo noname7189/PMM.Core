@@ -1,17 +1,37 @@
-﻿namespace PMM.Core.Provider.DataClass.Stream
+﻿using Newtonsoft.Json;
+using PMM.Core.Provider.Converter;
+
+namespace PMM.Core.Provider.DataClass.Stream
 {
     public class KlineStreamData
     {
-        public required decimal Open;
-        public required decimal High;
-        public required decimal Low;
-        public required decimal Close;
-        public required decimal Volume;
-        public required decimal QuoteVolume;
-        public required DateTime StartTime;
-        public required DateTime EndTime;
+        [JsonProperty("o")]
+        public decimal Open;
 
-        public required int TradeCount;
-        public required bool Final;
+        [JsonProperty("h")]
+        public decimal High;
+
+        [JsonProperty("l")]
+        public decimal Low;
+
+        [JsonProperty("c")]
+        public decimal Close;
+
+        [JsonProperty("v")]
+        public decimal Volume;
+
+        [JsonProperty("t")]
+        [JsonConverter(typeof(DateTimeConverter))]
+        public DateTime StartTime;
+
+        [JsonProperty("T")]
+        [JsonConverter(typeof(DateTimeConverter))]
+        public DateTime EndTime;
+
+        [JsonProperty("n")]
+        public int TradeCount;
+
+        [JsonProperty("x")]
+        public bool Final;
     }
 }

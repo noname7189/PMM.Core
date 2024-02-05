@@ -177,6 +177,16 @@ namespace PMM.Core.Provider.Converter
         {
             return _epoch.AddTicks((long)Math.Round(nanoseconds * 0.01m));
         }
+        public static long? ConvertToMilliseconds(DateTime? time)
+        {
+            if (time.HasValue)
+            {
+                return (long)Math.Round((time.Value - _epoch).TotalMilliseconds);
+            }
+
+            return null;
+        }
+
 
 
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)

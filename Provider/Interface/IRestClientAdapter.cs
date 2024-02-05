@@ -7,14 +7,14 @@ namespace PMM.Core.Provider.Interface
     public interface IRestClientAdapter
     {
         // StartUserStreamAsync
-        Task<string?> GetListenKey();
+        Task<Response<string>> GetListenKey();
         // GetAccountInfoASync
-        Task<AccountInfo?> GetAccountInfoAsync();
+        Task<Response<AccountInfo>> GetAccountInfoAsync();
         // GetKlinesAsync
-        Task<List<KlineData>?> GetKlinesAsync(Symbol symbol, Interval interval, int? limit);
+        Task<Response<List<KlineData>>> GetKlinesAsync(Symbol symbol, Interval interval, int? limit);
 
-        Task<OrderResult?> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity);
+        Task<Response<OrderResult>> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity);
 
-        Task<OrderResult?> CancelOrderAsync(Symbol symbol, long orderId);
+        Task<Response<OrderResult>> CancelOrderAsync(Symbol symbol, long orderId);
     }
 }

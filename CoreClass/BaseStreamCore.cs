@@ -105,7 +105,8 @@ namespace PMM.Core.CoreClass
                 {
                     CandleAdders.Add(new C() 
                     { 
-                        Time = kline.StartTime.AddHours(9),
+                        Time = kline.StartTime, // SelfProvider use this
+                        //Time = kline.StartTime.AddHours(9), JKorfProvider use this
                         Open = kline.Open,
                         High = kline.High,
                         Low = kline.Low,
@@ -117,7 +118,8 @@ namespace PMM.Core.CoreClass
                 }
                 else
                 {
-                    if (targetTime == kline.StartTime.AddHours(9)) found = true;
+                    if (targetTime == kline.StartTime) found = true; // SelfProvider use this
+                    //if (targetTime == kline.StartTime.AddHours(9)) found = true; JKorkProvider use this
                 }
             }
 
@@ -204,7 +206,8 @@ namespace PMM.Core.CoreClass
                 {
                     prevCandle = new()
                     {
-                        Time = klines.StartTime.AddHours(9),
+                        Time = klines.StartTime, // SelfProvider use this
+                        //Time = klines.StartTime.AddHours(9), JKorkProvider use this
                         Open = klines.Open,
                         High = klines.High,
                         Low = klines.Low,
