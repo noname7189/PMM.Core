@@ -64,10 +64,10 @@ namespace PMM.Core.CoreClass
         public abstract void PostStrategyInit();
         public abstract void ProcessEnter(decimal enterPrice, BaseSignal target);
         public abstract void ProcessLosscut(DateTime exitTime, BaseSignal target);
-        public abstract Action<OrderStreamData>? ProcessOnOrderUpdate();
+        public abstract Action<OrderStreamRecv>? ProcessOnOrderUpdate();
         public abstract void ProcessTakeProfit(decimal exitPrice, DateTime exitTime);
-        public abstract void ProcessWithDifferentCandle(KlineStreamData klines, BaseCandle prevCandle);
-        public abstract void ProcessWithSameCandle(KlineStreamData klines);
+        public abstract void ProcessWithDifferentCandle(KlineStreamRawData klines, BaseCandle prevCandle);
+        public abstract void ProcessWithSameCandle(KlineStreamRawData klines);
         public abstract void TryToMakeNewIndicator();
         public abstract S? TryToMakeNewSignal();
 

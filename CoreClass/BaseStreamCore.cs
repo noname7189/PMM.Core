@@ -2,9 +2,11 @@
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
 using PMM.Core.Interface;
+using PMM.Core.Provider;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Enum;
 using PMM.Core.Provider.Interface;
+using PMM.Core.Utils;
 
 namespace PMM.Core.CoreClass
 {
@@ -13,13 +15,13 @@ namespace PMM.Core.CoreClass
         #region Public Property
         public readonly List<C> Candles = [];
         public readonly List<C> CandleAdders = [];
-        public override List<Action<OrderStreamData>> OrderCallbackList { get => _orderCallbackList; }
+        public override List<Action<OrderStreamRecv>> OrderCallbackList { get => _orderCallbackList; }
         #endregion
 
         #region Private Property
         private readonly List<IStrategy> _strategyList = [];
         private readonly object LockObj = new();
-        private readonly List<Action<OrderStreamData>> _orderCallbackList = [];
+        private readonly List<Action<OrderStreamRecv>> _orderCallbackList = [];
 
         // InitEvent
         private event Action Chain_PreStrategyInit = delegate { };
@@ -29,8 +31,8 @@ namespace PMM.Core.CoreClass
 
         // OnlineEvent
         private event Action Chain_TryToMakeNewIndicator = delegate { };
-        private event Action<KlineStreamData> Chain_ProcessWithSameCandle = delegate { };
-        private event Action<KlineStreamData, BaseCandle> Chain_ProcessWithDifferentCandle = delegate { };
+        private event Action<KlineStreamRawData> Chain_ProcessWithSameCandle = delegate { };
+        private event Action<KlineStreamRawData, BaseCandle> Chain_ProcessWithDifferentCandle = delegate { };
         #endregion
 
         #region Public Method
@@ -91,22 +93,26 @@ namespace PMM.Core.CoreClass
             Candles.RemoveRange(0, Candles.Count - StrategyManager.Instance.BaseCandleCount);
         }
 
-        public sealed override Action<List<KlineStreamData>> OnGetBaseCandle() => (klines) =>
+        public sealed override Action<List<KlineStreamRawData>> OnGetBaseCandle() => (klines) =>
         {
             if (Candles.Count == 0) throw new ArgumentException("StreamCore has not been initialized!");
             //if (Candles.Count == 0) return;
             DateTime targetTime = Candles.Last().Time;
 
+
             bool found = false;
 
             foreach (var kline in klines)
             {
+                // TODO : Deprecate
+                DateTime startTime = kline.GetType() == typeof(KlineStreamData) ? ((KlineStreamData)kline).StartTime.AddHours(9) : Util.GetDateTimeFromMilliSeconds(kline.StartTime);
+
                 if (found)
                 {
+
                     CandleAdders.Add(new C() 
                     { 
-                        Time = kline.StartTime, // SelfProvider use this
-                        //Time = kline.StartTime.AddHours(9), JKorfProvider use this
+                        Time = startTime,
                         Open = kline.Open,
                         High = kline.High,
                         Low = kline.Low,
@@ -114,12 +120,11 @@ namespace PMM.Core.CoreClass
                         Volume = kline.Volume
                     });
 
-                    targetTime = kline.EndTime;
+                    targetTime = Util.GetDateTimeFromMilliSeconds(kline.EndTime);
                 }
                 else
                 {
-                    if (targetTime == kline.StartTime) found = true; // SelfProvider use this
-                    //if (targetTime == kline.StartTime.AddHours(9)) found = true; JKorkProvider use this
+                    if (targetTime == startTime) found = true;
                 }
             }
 
@@ -151,7 +156,7 @@ namespace PMM.Core.CoreClass
                 strategy.SetStreamCore(this);
                 BindInitProcess(strategy);
                 BindOnlineProcess(strategy);
-                Action<OrderStreamData>? callback = strategy.ProcessOnOrderUpdate();
+                Action<OrderStreamRecv>? callback = strategy.ProcessOnOrderUpdate();
                 if (callback != null)
                 {
                     OrderCallbackList.Add(callback);
@@ -183,18 +188,21 @@ namespace PMM.Core.CoreClass
         {
             Chain_TryToMakeNewIndicator.Invoke();
         }
-        internal override void ExecuteChain_ProcessWithSameCandle(KlineStreamData klines)
+        internal override void ExecuteChain_ProcessWithSameCandle(KlineStreamRawData klines)
         {
             Chain_ProcessWithSameCandle.Invoke(klines);
         }
-        internal override void ExecuteChain_ProcessWithDifferentCandle(KlineStreamData klines, BaseCandle prevCandle)
+        internal override void ExecuteChain_ProcessWithDifferentCandle(KlineStreamRawData klines, BaseCandle prevCandle)
         {
             Chain_ProcessWithDifferentCandle.Invoke(klines, prevCandle);
         }
-        public sealed override Action<KlineStreamData> OnGetStreamData() => (stream) =>
+        public sealed override Action<KlineStreamRawData> OnGetStreamData() => (stream) =>
         {
-            KlineStreamData klines = stream;
+            KlineStreamRawData klines = stream;
             C? prevCandle = null;
+
+            // TODO : Deprecate
+            DateTime startTime = klines.GetType() == typeof(KlineStreamData) ? ((KlineStreamData)klines).StartTime.AddHours(9) : Util.GetDateTimeFromMilliSeconds(klines.StartTime);
 
             lock (LockObj)
             {
@@ -206,8 +214,7 @@ namespace PMM.Core.CoreClass
                 {
                     prevCandle = new()
                     {
-                        Time = klines.StartTime, // SelfProvider use this
-                        //Time = klines.StartTime.AddHours(9), JKorkProvider use this
+                        Time = startTime,
                         Open = klines.Open,
                         High = klines.High,
                         Low = klines.Low,

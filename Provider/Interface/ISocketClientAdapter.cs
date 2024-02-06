@@ -7,6 +7,6 @@ namespace PMM.Core.Provider.Interface
     internal interface ISocketClientAdapter
     {
         Task SubscribeToUserDataUpdatesAsync();
-        Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamData> onGetStreamData);
+        Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamRawData> onGetStreamData);
     }
 }

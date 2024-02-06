@@ -1,13 +1,17 @@
-﻿using Binance.Net.Enums;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using PMM.Core.Enum;
 using PMM.Core.Provider.Converter;
+using PMM.Core.Provider.Converter.DependentConverter;
 using PMM.Core.Provider.DataClass.Rest;
 using PMM.Core.Provider.DataClass.Stream;
+using PMM.Core.Provider.DataClass.Stream.EventRecvData;
 using PMM.Core.Provider.Enum;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using WebSocketSharp;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PMM.Core.Provider.Binance
 {
@@ -18,9 +22,21 @@ namespace PMM.Core.Provider.Binance
         private const string ListenkeyEndpoint = @"/fapi/v1/listenKey";
         private const string OrderEndpoint = @"/fapi/v1/order";
 
+        private const string StreamBase = @"wss://fstream.binance.com/ws";
+
         private readonly HttpClient Client = new();
         private readonly HMACSHA256 Encryptor = new();
         private long _timeOffset = 0;
+
+        private WebSocket UserDataSocket;
+        private List<WebSocket> KlineDataSocketList;
+
+        // TODO : Deprecate
+        public override LibProvider GetLibProviderType()
+        {
+            return LibProvider.Self;
+        }
+
         internal override void InitContext()
         {
             Client.BaseAddress = new Uri("https://fapi.binance.com");
@@ -84,21 +100,123 @@ namespace PMM.Core.Provider.Binance
             return await ResponseWrapper<OrderResult>(response);
         }
 
-        public override Task<Response<OrderResult>> CancelOrderAsync(Symbol symbol, long orderId)
+        public async override Task<Response<OrderResult>> CancelOrderAsync(Symbol symbol, long orderId)
         {
-            throw new NotImplementedException();
+            var parameters = new Dictionary<string, string>()
+            {
+                { "symbol", symbol.ToString() },
+                { "orderId", orderId.ToString() },
+            };
+
+            string query = GetEntireQuery(parameters);
+
+            HttpResponseMessage response = await Client.DeleteAsync(GetEntireRouteForSigned(OrderEndpoint, query));
+            return await ResponseWrapper<OrderResult>(response);
         }
 
 
-        public override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamData> onGetStreamData)
+        public override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamRawData> onGetStreamData)
         {
-            throw new NotImplementedException();
+            string intervalStr = IntervalConverter.GetValue(interval) ?? throw new Exception("KlineSocket interval exception");
+            string url = $"{StreamBase}/{symbol.ToString().ToLower()}@kline_{intervalStr}";
+
+            WebSocket sock = new(url);
+
+            sock.OnMessage += (sender, e) =>
+            {
+                var combinedToken = JToken.Parse(e.Data);
+
+                var token = combinedToken["k"];
+
+                if (token == null) return;
+
+                KlineStreamRawData raw = new()
+                {
+                    StartTime = (long)token["t"],
+                    EndTime = (long)token["T"],
+                    Open = (decimal)token["o"],
+                    High = (decimal)token["h"],
+                    Low = (decimal)token["l"],
+                    Close = (decimal)token["c"],
+                    Volume = (decimal)token["v"],
+                    Final = (bool)token["x"]
+                };
+
+                onGetStreamData(raw);
+            };
+
+            sock.Connect();
+
+            bool ping = sock.Ping();
+            bool isAlive = sock.IsAlive;
+            bool isSecure = sock.IsSecure;
+
+            if (ping && isAlive && isSecure) 
+            {
+                KlineDataSocketList.Add(sock);
+                return Task.CompletedTask;
+            }
+            throw new Exception("KlineSocket Finish Error");
         }
 
         public override Task SubscribeToUserDataUpdatesAsync()
         {
-            throw new NotImplementedException();
+            UserDataSocket = new WebSocket($"{StreamBase}/{ListenKey}");
+
+            if (OnListenKeyExpired != null)
+
+            UserDataSocket.OnMessage += (sender, e) =>
+            {
+                var combinedToken = JToken.Parse(e.Data);
+
+                if (combinedToken["data"] != null)
+                {
+                    if (OnListenKeyExpired != null)
+                    {
+                        ExpiredData data = combinedToken["data"]!.ToObject<ExpiredData>();
+                        BaseStreamRecv recv = new()
+                        {
+                            Event = data.EventType,
+                            EventTime = data.EventTime,
+                        };
+
+                        OnListenKeyExpired.Invoke(recv);
+                    }
+                    return;
+                }
+
+                var evnt = combinedToken["e"]?.ToString();
+                if (evnt == null) return;
+                StreamEventType? evntType = StreamEventTypeConverter.GetKey(evnt);
+
+                switch (evntType)
+                {
+                    case StreamEventType.AccountUpdate:
+                        {
+                            AccountStreamRecv? recv = combinedToken.ToObject<AccountStreamRecv>();
+                            if (recv != null) OnAccountUpdate?.Invoke(recv);
+                            return;
+                        }
+                    case StreamEventType.OrderUpdate:
+                        {
+                            OrderStreamRecv? recv = combinedToken.ToObject<OrderStreamRecv>();
+                            if (recv != null) OnOrderUpdate(recv);
+                            return;
+                        }
+                    case null:
+                        return;
+                }
+            };
+
+            UserDataSocket.Connect();
+
+            bool ping = UserDataSocket.Ping();
+            bool isAlive = UserDataSocket.IsAlive;
+            bool isSecure = UserDataSocket.IsSecure;
+
+            return ping && isAlive && isSecure ? Task.CompletedTask : throw new Exception("UserDataSocket Finish Error");
         }
+
 
         private static string GetEntireQuery(Dictionary<string, string> parameters)
         {
@@ -127,7 +245,6 @@ namespace PMM.Core.Provider.Binance
                 };
             }
         }
-
 
         private async Task<long> GetOffset()
         {

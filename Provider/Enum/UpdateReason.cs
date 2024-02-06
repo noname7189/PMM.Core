@@ -2,7 +2,6 @@
 {
     public enum UpdateReason
     {
-        Others,
         FundingFee,
     }
 }

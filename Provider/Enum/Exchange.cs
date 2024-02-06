@@ -5,7 +5,6 @@
     {
         Binance,
         OKX,
-        Others
     }
 
     // Will be deprecated

@@ -1,22 +1,49 @@
-﻿using PMM.Core.Enum;
+﻿using Newtonsoft.Json;
+using PMM.Core.Enum;
+using PMM.Core.Provider.Converter;
+using PMM.Core.Provider.Converter.DependentConverter;
 using PMM.Core.Provider.Enum;
 
 namespace PMM.Core.Provider.DataClass.Rest
 {
     public class OrderResult
     {
-        public required decimal Price;
-        public required decimal AveragePrice;
-        public required decimal QuantityFilled;
-        public required decimal FulfilledQuantity;
-        public required decimal Quantity;
-        public required DateTime UpdateTime;
-        public required DateTime CreateTime;
-        public required long OrderId;
-        public required long? TradeId;
-        public required Symbol Symbol;
-        public required OrderPosition Side;
-        public required OrderStatusType Status;
-        public required bool Final;
+        [JsonProperty("price")]
+        public decimal Price;
+
+        [JsonProperty("avgPrice")]
+        public decimal AveragePrice;
+
+        [JsonProperty("executedQty")]
+        public decimal QuantityFilled;
+
+        [JsonProperty("cumQty")]
+        public decimal FulfilledQuantity;
+
+        [JsonProperty("origQty")]
+        public decimal Quantity;
+
+        [JsonProperty("updateTime"), JsonConverter(typeof(DateTimeConverter))]
+        public DateTime UpdateTime;
+
+        [JsonProperty("time"), JsonConverter(typeof(DateTimeConverter))]
+        public DateTime CreateTime;
+
+        [JsonProperty("orderId")]
+        public long OrderId;
+
+        public long? TradeId;
+
+        [JsonProperty("symbol")]
+        public Symbol Symbol;
+
+        [JsonProperty("side"), JsonConverter(typeof(OrderPositionConverter))]
+        public OrderPosition Side;
+
+        [JsonProperty("status"), JsonConverter(typeof(OrderStatusConverter))]
+        public OrderStatusType Status;
+
+        [JsonProperty("closePosition")]
+        public bool Final;
     }
 }

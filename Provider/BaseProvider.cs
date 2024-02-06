@@ -6,6 +6,7 @@ using PMM.Core.Provider.Enum;
 using PMM.Core.Provider.Interface;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.DataClass.Rest;
+using PMM.Core.Provider.DataClass.Stream.EventRecvData;
 
 namespace PMM.Core.Provider
 {
@@ -18,15 +19,17 @@ namespace PMM.Core.Provider
         internal readonly int BaseCandleCount = StrategyManager.Instance.BaseCandleCount;
         internal readonly int InitCandleCount = StrategyManager.Instance.InitCandleCount;
         protected readonly List<IStreamCore> _streamCoreList = [];
-        protected event Action<OrderStreamData>? Chain_OnOrderUpdate = null;
-        protected Action<AccountStreamData>? OnAccountUpdate { get; set; }
+        protected event Action<OrderStreamRecv>? Chain_OnOrderUpdate = null;
+        protected Action<AccountStreamRecv>? OnAccountUpdate { get; set; }
         protected Action<AccountInfo>? OnGetAccountInfo { get; set; }
-        protected Action<StreamEvent>? OnListenKeyExpired { get; set; }
+        protected Action<BaseStreamRecv>? OnListenKeyExpired { get; set; }
 
         protected dynamic? ClientContext { get; set; }
         #endregion
 
         #region Abstract
+        // TODO : Deprecate
+        public abstract LibProvider GetLibProviderType();
         internal abstract void CreateContext(ProviderType type);
         internal abstract void InitContext();
         internal void DisposeContext()
@@ -47,13 +50,13 @@ namespace PMM.Core.Provider
 
         // SocketClient
         public abstract Task SubscribeToUserDataUpdatesAsync();
-        public abstract Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamData> onGetStreamData);
+        public abstract Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamRawData> onGetStreamData);
         #endregion
 
         #region Public Method
         public S AddStreamCore<S>() where S : IStreamCore, new()
         {
-            S adder = new();
+            S adder = new() { };
             foreach (var core in _streamCoreList)
             {
                 if (core.Exists(adder.Symbol, adder.Interval)) throw new ArgumentException($"Stream core with symbol: {adder.Symbol}, interval: {adder.Interval} already exists");
@@ -61,6 +64,7 @@ namespace PMM.Core.Provider
 
             
             _streamCoreList.Add(adder);
+            adder.LibProvider = GetLibProviderType();
 
             return adder;
         }
@@ -84,6 +88,8 @@ namespace PMM.Core.Provider
         }
         internal async Task Init(IRestClientAdapter adapter)
         {
+            ListenKey = (await GetListenKey()).Data ?? throw new Exception("Listenkey Error");
+
             InitContext();
 
             CreateContext(ProviderType.Rest);
@@ -91,8 +97,6 @@ namespace PMM.Core.Provider
             if (accountInfo != null) {
                 OnGetAccountInfo?.Invoke(accountInfo);
             }
-
-            ListenKey = (await GetListenKey()).Data ?? throw new Exception("Listenkey Error");
 
             KeepAliveScheduler.Run(ListenKey);
 
@@ -124,7 +128,7 @@ namespace PMM.Core.Provider
 
             DisposeContext();
         }
-        protected void OnOrderUpdate(OrderStreamData data)
+        protected void OnOrderUpdate(OrderStreamRecv data)
         {
             if (Chain_OnOrderUpdate == null) return;
 
@@ -144,13 +148,13 @@ namespace PMM.Core.Provider
 
             foreach (var core in _streamCoreList)
             {
-                // TODO : OnGetStreamData - from Action<DataEvent<IBinanceStreamKlineData>> to Action<KlineData>
                 await SubscribeToKlineUpdatesAsync(core.Symbol, core.Interval, core.OnGetStreamData());
             }
 
             DisposeContext();
             // TODO : SocketSubscribe Data Lost, Connected Handler
         }
+
 
         #endregion
     }

@@ -13,11 +13,19 @@ using Binance.Net.Objects.Models.Futures.Socket;
 using Binance.Net.Objects.Models;
 using Symbol = PMM.Core.Enum.Symbol;
 using System.Net;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using PMM.Core.Provider.DataClass.Stream.EventRecvData;
 
 namespace PMM.Core.Provider.Impl
 {
     internal class JKorfProvider : BaseProvider
     {
+        // TODO : Deprecate
+        public override LibProvider GetLibProviderType()
+        {
+            return LibProvider.JKorf;
+        }
+
         internal override void InitContext()
         {
             ApiCredentials credentials = new(PublicKey, SecretKey);
@@ -65,7 +73,7 @@ namespace PMM.Core.Provider.Impl
 
                     return Success(data);
                 }
-                else return Failure<AccountInfo>((HttpStatusCode)result.ResponseStatusCode!, result.Error!.Message);
+                else return Failure<AccountInfo, BinanceFuturesAccountInfo>(result);
             }
             else throw new Exception("ClientContext is not BinanceRestClient");
         }
@@ -96,7 +104,7 @@ namespace PMM.Core.Provider.Impl
                 }
                 else
                 {
-                    return Failure<List<KlineData>>((HttpStatusCode)result.ResponseStatusCode!, result.Error!.Message);
+                    return Failure<List<KlineData>, IEnumerable<IBinanceKline>>(result);
                 }
             }
             else throw new Exception("ClientContext is not BinanceRestClient");
@@ -112,7 +120,7 @@ namespace PMM.Core.Provider.Impl
                 {
                     return Success(result.Data);
                 }
-                else return Failure<string>((HttpStatusCode)result.ResponseStatusCode, result.Error.Message);
+                else return Failure<string, string>(result);
             }
             else throw new Exception("ClientContext is not BinanceRestClient");
         }
@@ -153,7 +161,7 @@ namespace PMM.Core.Provider.Impl
 
                 return Success(res);
             }
-            else return Failure<OrderResult>((HttpStatusCode)orderData.ResponseStatusCode, orderData.Error?.Message);
+            else return Failure<OrderResult, BinanceUsdFuturesOrder>(orderData);
         }
 
         public async override Task<Response<OrderResult>> CancelOrderAsync(Symbol symbol, long orderId)
@@ -184,10 +192,10 @@ namespace PMM.Core.Provider.Impl
                 };
                 return Success(res);
             }
-            else return Failure<OrderResult>((HttpStatusCode)cancelData.ResponseStatusCode!, cancelData.Error!.Message); 
+            else return Failure<OrderResult, BinanceUsdFuturesOrder>(cancelData); 
         }
 
-        public async override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamData> onGetStreamData)
+        public async override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamRawData> onGetStreamData)
         {
             if (ClientContext is BinanceSocketClient)
             {
@@ -224,27 +232,26 @@ namespace PMM.Core.Provider.Impl
                 {
 
                     BinanceFuturesStreamAccountUpdateData data1 = data.Data.UpdateData;
-                    AccountStreamData data2 = new(data1, data.Data.TransactionTime);
+                    AccountStreamRecv data2 = new(data1, data.Data.TransactionTime);
 
                     OnAccountUpdate.Invoke(data2);
                 }
                 : null;
 
-
                 Action<DataEvent<BinanceFuturesStreamOrderUpdate>>? onOrderUpdateHandler = CheckChainOnOrderUpdate() == true ? (data) =>
                 {
                     BinanceFuturesStreamOrderUpdateData data1 = data.Data.UpdateData;
 
-                    OrderStreamData data2 = new(data1, data.Data.EventTime);
+                    OrderStreamRecv data2 = new(data1, data.Data.EventTime);
                     OnOrderUpdate(data2);
                 }
                 : null;
 
                 Action<DataEvent<BinanceStreamEvent>> onListenKeyExpiredHandler = OnListenKeyExpired != null ? (data) =>
                 {
-                    StreamEvent e = new()
+                    BaseStreamRecv e = new()
                     {
-                        Event = data.Data.Event,
+                        Event = StreamEventType.ListenkeyExpired,
                         EventTime = data.Data.EventTime,
                     };
 
@@ -270,12 +277,12 @@ namespace PMM.Core.Provider.Impl
             };
         }
 
-        private static Response<T> Failure<T>(HttpStatusCode code, string msg) where T : class
+        private static Response<T> Failure<T,S>(WebCallResult<S> result) where T : class where S : class
         {
             return new()
             {
-                StatusCode = code,
-                Msg = msg,
+                StatusCode = (HttpStatusCode)result.ResponseStatusCode,
+                Msg = result.Error.Message,
                 Data = null
             };
         }
@@ -292,12 +299,12 @@ namespace PMM.Core.Provider.Impl
             };
         }
 
-        internal static UpdateReason ReasonConverter(AccountUpdateReason reason)
+        internal static UpdateReason? ReasonConverter(AccountUpdateReason reason)
         {
             return reason switch
             {
                 AccountUpdateReason.FundingFee => UpdateReason.FundingFee,
-                _ => UpdateReason.Others,
+                _ => null,
             };
         }
 
@@ -333,5 +340,6 @@ namespace PMM.Core.Provider.Impl
                 _ => OrderStatusType.Others,
             };
         }
+
     }
 }

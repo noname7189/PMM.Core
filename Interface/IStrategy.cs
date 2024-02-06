@@ -39,8 +39,8 @@ namespace PMM.Core.Interface
     {
         public void TryToMakeNewIndicator();
         public void TryToMakeNewIndicatorWrapper();
-        public void ProcessWithSameCandle(KlineStreamData klines);
-        public void ProcessWithDifferentCandle(KlineStreamData klines, BaseCandle prevCandle);
+        public void ProcessWithSameCandle(KlineStreamRawData klines);
+        public void ProcessWithDifferentCandle(KlineStreamRawData klines, BaseCandle prevCandle);
     }
 
     public interface IOrderProcess
@@ -48,7 +48,7 @@ namespace PMM.Core.Interface
         public void ProcessEnter(decimal enterPrice, BaseSignal target);
         public void ProcessTakeProfit(decimal exitPrice, DateTime exitTime);
         public void ProcessLosscut(DateTime exitTime, BaseSignal target);
-        public Action<OrderStreamData>? ProcessOnOrderUpdate();
+        public Action<OrderStreamRecv>? ProcessOnOrderUpdate();
     }
 
     public interface IStrategy : IInitProcess, IOnlineProcess, IOrderProcess
