@@ -1,6 +1,6 @@
 ﻿namespace PMM.Core.Provider.Enum
 {
-    public enum OrderPosition
+    public enum OrderSide
     {
         Long,
         Short

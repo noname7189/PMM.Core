@@ -2,7 +2,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using Binance.Net.Enums;
 using PMM.Core.Provider.Enum;
 
 namespace PMM.Core.DataClass
@@ -16,7 +15,7 @@ namespace PMM.Core.DataClass
         public decimal Price { get; set; }
         public decimal FulfilledQuantity { get; set; }
         [JsonConverter(typeof(JsonStringEnumConverter))]
-        public OrderStatusType OrderStatus { get; set; }
+        public OrderStatus OrderStatus { get; set; }
 
         [JsonIgnore]
         [Required]

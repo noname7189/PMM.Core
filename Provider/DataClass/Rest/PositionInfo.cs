@@ -1,21 +1,13 @@
-﻿using Binance.Net.Objects.Models.Futures.Socket;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+using PMM.Core.Enum;
+using PMM.Core.Provider.Converter.DependentConverter;
 
 namespace PMM.Core.Provider.DataClass.Rest
 {
     public class PositionInfo
     {
-        public PositionInfo() { }
-        public PositionInfo(BinanceFuturesStreamPosition position) 
-        {
-            Symbol = position.Symbol;
-            Quantity = position.Quantity;
-            EntryPrice = position.EntryPrice;
-            RealizedPnl = position.RealizedPnl;
-            UnrealizedPnl = position.UnrealizedPnl;
-        }
-        [JsonProperty("s")]
-        public string Symbol { get; set; }
+        [JsonProperty("s"), JsonConverter(typeof(SymbolConverter))]
+        public Symbol? Symbol { get; set; }
         [JsonProperty("pa")]
         public decimal Quantity { get; set; }
         [JsonProperty("ep")]

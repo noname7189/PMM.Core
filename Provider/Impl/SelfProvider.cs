@@ -7,11 +7,11 @@ using PMM.Core.Provider.DataClass.Rest;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.DataClass.Stream.EventRecvData;
 using PMM.Core.Provider.Enum;
+using PMM.Core.Utils;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using WebSocketSharp;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace PMM.Core.Provider.Binance
 {
@@ -24,18 +24,12 @@ namespace PMM.Core.Provider.Binance
 
         private const string StreamBase = @"wss://fstream.binance.com/ws";
 
-        private readonly HttpClient Client = new();
-        private readonly HMACSHA256 Encryptor = new();
-        private long _timeOffset = 0;
+        private static readonly HttpClient Client = new();
+        private static readonly HMACSHA256 Encryptor = new();
+        private static long _timeOffset = 0;
 
         private WebSocket UserDataSocket;
         private List<WebSocket> KlineDataSocketList;
-
-        // TODO : Deprecate
-        public override LibProvider GetLibProviderType()
-        {
-            return LibProvider.Self;
-        }
 
         internal override void InitContext()
         {
@@ -75,6 +69,17 @@ namespace PMM.Core.Provider.Binance
             return await ResponseWrapper<List<KlineData>>(response);
         }
 
+        internal async static Task<bool> KeepAlive()
+        {
+            HttpResponseMessage response = await Client.PutAsync(GetEntireRouteForSigned(ListenkeyEndpoint), null);
+
+            JToken token = JToken.Parse(await response.Content.ReadAsStringAsync());
+
+            var code = token["code"];
+
+            if (response.IsSuccessStatusCode == true && code == null) return true;
+            return false;
+        }
 
         public override async Task<Response<string>> GetListenKey()
         {
@@ -82,17 +87,18 @@ namespace PMM.Core.Provider.Binance
             return await ResponseWrapper<string>(response);
         }
 
-        public override async Task<Response<OrderResult>> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity)
+        public override async Task<Response<OrderResult>> PlaceOrderAsync(Symbol symbol, OrderSide position, decimal price, decimal quantity)
         {
             var parameters = new Dictionary<string, string>()
             {
                 { "symbol", symbol.ToString() },
-                { "side", OrderPositionConverter.GetValue(position) },
-                { "type", OrderTypeConverter.GetValue(OrderType.Limit) },
-                { "timeInForce", GoodTillDateConverter.GetValue(GoodTillDate.GoodTillCanceled) },
                 { "quantity", quantity.ToString() },
                 { "price", price.ToString() },
             };
+
+            parameters.AddOptionalParameter("side", OrderPositionConverter.GetValue(position));
+            parameters.AddOptionalParameter("type", OrderTypeConverter.GetValue(OrderType.Limit));
+            parameters.AddOptionalParameter("timeInForce", GoodTillDateConverter.GetValue(GoodTillDate.GoodTillCanceled));
 
             string query = GetEntireQuery(parameters);
 
@@ -118,6 +124,8 @@ namespace PMM.Core.Provider.Binance
         public override Task SubscribeToKlineUpdatesAsync(Symbol symbol, Interval interval, Action<KlineStreamRawData> onGetStreamData)
         {
             string intervalStr = IntervalConverter.GetValue(interval) ?? throw new Exception("KlineSocket interval exception");
+
+            // All symbols for streams are lowercase
             string url = $"{StreamBase}/{symbol.ToString().ToLower()}@kline_{intervalStr}";
 
             WebSocket sock = new(url);
@@ -128,21 +136,33 @@ namespace PMM.Core.Provider.Binance
 
                 var token = combinedToken["k"];
 
-                if (token == null) return;
+                //if (token == null) return;
 
-                KlineStreamRawData raw = new()
+                try
                 {
-                    StartTime = (long)token["t"],
-                    EndTime = (long)token["T"],
-                    Open = (decimal)token["o"],
-                    High = (decimal)token["h"],
-                    Low = (decimal)token["l"],
-                    Close = (decimal)token["c"],
-                    Volume = (decimal)token["v"],
-                    Final = (bool)token["x"]
-                };
+                    KlineStreamRawData raw = new()
+                    {
+                        StartTime = (long)token["t"],
+                        EndTime = (long)token["T"],
+                        Open = (decimal)token["o"],
+                        High = (decimal)token["h"],
+                        Low = (decimal)token["l"],
+                        Close = (decimal)token["c"],
+                        Volume = (decimal)token["v"],
+                        Final = (bool)token["x"],
+                    };
 
-                onGetStreamData(raw);
+                    onGetStreamData(raw);
+                } catch { }
+
+                //if (long.TryParse((string?)token["t"], out long startTime) &&
+                //    long.TryParse((string?)token["T"], out long endTime) && 
+                //    decimal.TryParse((string?)token["o"], out decimal open) && 
+                //    decimal.TryParse((string?)token["h"], out decimal high) && 
+                //    decimal.TryParse((string?)token["l"], out decimal low) && 
+                //    decimal.TryParse((string?)token["c"], out decimal close) && 
+                //    decimal.TryParse((string?)token["v"], out decimal volume) &&
+                //    bool.TryParse((string?)token["x"], out bool final))
             };
 
             sock.Connect();
@@ -226,7 +246,7 @@ namespace PMM.Core.Provider.Binance
 
         private static async Task<Response<T>> ResponseWrapper<T>(HttpResponseMessage response) where T : class
         {
-            if (response.StatusCode == HttpStatusCode.OK)
+            if (response.IsSuccessStatusCode)
             {
                 return new()
                 {
@@ -263,7 +283,7 @@ namespace PMM.Core.Provider.Binance
         }
 
 
-        private string GetEntireRouteForSigned(string endpoint, string? query = null)
+        private static string GetEntireRouteForSigned(string endpoint, string? query = null)
         {
             string body;
             string res;
@@ -282,7 +302,7 @@ namespace PMM.Core.Provider.Binance
 
             return $"{endpoint}?{res}";
         }
-        private long GetAdjustedCurrentTimestamp()
+        private static long GetAdjustedCurrentTimestamp()
         {
             return (long)DateTimeConverter.ConvertToMilliseconds(DateTime.UtcNow)! + _timeOffset;
         }

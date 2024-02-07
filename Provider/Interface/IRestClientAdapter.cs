@@ -13,7 +13,7 @@ namespace PMM.Core.Provider.Interface
         // GetKlinesAsync
         Task<Response<List<KlineData>>> GetKlinesAsync(Symbol symbol, Interval interval, int? limit);
 
-        Task<Response<OrderResult>> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity);
+        Task<Response<OrderResult>> PlaceOrderAsync(Symbol symbol, OrderSide position, decimal price, decimal quantity);
 
         Task<Response<OrderResult>> CancelOrderAsync(Symbol symbol, long orderId);
     }

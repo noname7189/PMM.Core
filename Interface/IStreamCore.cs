@@ -1,6 +1,5 @@
 ﻿using PMM.Core.EntityClass;
 using PMM.Core.Enum;
-using PMM.Core.Provider;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Enum;
 using PMM.Core.Provider.Interface;
@@ -10,7 +9,6 @@ namespace PMM.Core.Interface
     public abstract class IStreamCore
     {
         #region Property
-        internal LibProvider LibProvider { get; set; }
         public abstract Symbol Symbol { get; }
         public abstract Interval Interval { get; }
         public abstract List<Action<OrderStreamRecv>> OrderCallbackList { get; }

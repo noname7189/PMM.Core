@@ -3,17 +3,17 @@ using PMM.Core.Provider.Enum;
 using PMM.Core.Utils;
 namespace PMM.Core.Provider.Converter.DependentConverter
 {
-    public class OrderPositionConverter : BaseConverter<OrderPosition>
+    public class OrderPositionConverter : BaseConverter<OrderSide>
     {
-        private static readonly List<KeyValuePair<OrderPosition, string>> Values =
+        private static readonly List<KeyValuePair<OrderSide, string>> Values =
         [
-            new KeyValuePair<OrderPosition, string>(OrderPosition.Long, "BUY"),
-            new KeyValuePair<OrderPosition, string>(OrderPosition.Short, "SELL"),
+            new KeyValuePair<OrderSide, string>(OrderSide.Long, "BUY"),
+            new KeyValuePair<OrderSide, string>(OrderSide.Short, "SELL"),
         ];
 
-        public override List<KeyValuePair<OrderPosition, string>> Mapping => Values;
+        public override List<KeyValuePair<OrderSide, string>> Mapping => Values;
 
-        public static string? GetValue(OrderPosition value)
+        public static string? GetValue(OrderSide value)
         {
             return Values.SingleOrNull(v => v.Key == value)?.Value;
         }

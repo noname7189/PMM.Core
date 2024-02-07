@@ -35,13 +35,13 @@ namespace PMM.Core.Provider.DataClass.Rest
         public long? TradeId;
 
         [JsonProperty("symbol")]
-        public Symbol Symbol;
+        public Symbol? Symbol;
 
         [JsonProperty("side"), JsonConverter(typeof(OrderPositionConverter))]
-        public OrderPosition Side;
+        public OrderSide? Side;
 
         [JsonProperty("status"), JsonConverter(typeof(OrderStatusConverter))]
-        public OrderStatusType Status;
+        public OrderStatus? Status;
 
         [JsonProperty("closePosition")]
         public bool Final;

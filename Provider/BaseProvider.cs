@@ -19,17 +19,15 @@ namespace PMM.Core.Provider
         internal readonly int BaseCandleCount = StrategyManager.Instance.BaseCandleCount;
         internal readonly int InitCandleCount = StrategyManager.Instance.InitCandleCount;
         protected readonly List<IStreamCore> _streamCoreList = [];
-        protected event Action<OrderStreamRecv>? Chain_OnOrderUpdate = null;
-        protected Action<AccountStreamRecv>? OnAccountUpdate { get; set; }
-        protected Action<AccountInfo>? OnGetAccountInfo { get; set; }
-        protected Action<BaseStreamRecv>? OnListenKeyExpired { get; set; }
+        private event Action<OrderStreamRecv>? Chain_OnOrderUpdate = null;
+        internal Action<AccountStreamRecv>? OnAccountUpdate { get; set; }
+        internal Action<AccountInfo>? OnGetAccountInfo { get; set; }
+        internal Action<BaseStreamRecv>? OnListenKeyExpired { get; set; }
 
         protected dynamic? ClientContext { get; set; }
         #endregion
 
         #region Abstract
-        // TODO : Deprecate
-        public abstract LibProvider GetLibProviderType();
         internal abstract void CreateContext(ProviderType type);
         internal abstract void InitContext();
         internal void DisposeContext()
@@ -45,7 +43,7 @@ namespace PMM.Core.Provider
         public abstract Task<Response<string>> GetListenKey();
         public abstract Task<Response<AccountInfo>> GetAccountInfoAsync();
         public abstract Task<Response<List<KlineData>>> GetKlinesAsync(Symbol symbol, Interval interval, int? limit);
-        public abstract Task<Response<OrderResult>> PlaceOrderAsync(Symbol symbol, OrderPosition position, decimal price, decimal quantity);
+        public abstract Task<Response<OrderResult>> PlaceOrderAsync(Symbol symbol, OrderSide position, decimal price, decimal quantity);
         public abstract Task<Response<OrderResult>> CancelOrderAsync(Symbol symbol, long orderId);
 
         // SocketClient
@@ -64,7 +62,6 @@ namespace PMM.Core.Provider
 
             
             _streamCoreList.Add(adder);
-            adder.LibProvider = GetLibProviderType();
 
             return adder;
         }
@@ -98,7 +95,7 @@ namespace PMM.Core.Provider
                 OnGetAccountInfo?.Invoke(accountInfo);
             }
 
-            KeepAliveScheduler.Run(ListenKey);
+            KeepAliveScheduler.Run();
 
             BindOrderUpdateProcess();
 

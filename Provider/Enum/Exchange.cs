@@ -6,11 +6,4 @@
         Binance,
         OKX,
     }
-
-    // Will be deprecated
-    public enum LibProvider
-    {
-        Self,
-        JKorf
-    }
 }

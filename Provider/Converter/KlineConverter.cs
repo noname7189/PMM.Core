@@ -11,12 +11,12 @@ namespace PMM.Core.Provider.Converter
             return false;
         }
 
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             JArray arr = JArray.Load(reader);
             KlineData entry = new()
             {
-                StartTime = new DateTime(1970, 1, 1, 9, 0, 0, DateTimeKind.Utc).AddMilliseconds((long)arr[0]),
+                StartTime = DateTimeConverter.ConvertFromMilliseconds((long)arr[0]),
                 Open = (decimal)arr[1],
                 High = (decimal)arr[2],
                 Low = (decimal)arr[3],
@@ -28,7 +28,7 @@ namespace PMM.Core.Provider.Converter
             return entry;
         }
 
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
             throw new NotImplementedException();
         }

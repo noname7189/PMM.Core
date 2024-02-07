@@ -1,9 +1,7 @@
 ﻿namespace PMM.Core.Provider.Enum
 {
-    // TODO : OrderStatusType => OrderStatus after detaching Binance.Net
-    public enum OrderStatusType
+    public enum OrderStatus
     {
-        Others,
         New,
         PartiallyFilled,
         Filled,

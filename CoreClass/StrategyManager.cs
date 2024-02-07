@@ -1,26 +1,11 @@
-﻿using Binance.Net.Objects.Models;
-using Binance.Net.Objects.Models.Futures;
-using Binance.Net.Objects.Models.Futures.Socket;
-using CryptoExchange.Net.Sockets;
-using PMM.Core.Provider;
+﻿using PMM.Core.Provider;
 using PMM.Core.Provider.Enum;
-using PMM.Core.Provider.Impl;
 using PMM.Core.Provider.Binance;
 using PMM.Core.Provider.Interface;
 using PMM.Core.Provider.DataClass;
 
 namespace PMM.Core.CoreClass
 {
-    public class StrategyManagerOptions(string publicKey, string secretKey, Action<DataEvent<BinanceFuturesStreamAccountUpdate>>? onAccountUpdate, Action<DataEvent<BinanceStreamEvent>>? onListenKeyExpired, Action<BinanceFuturesAccountInfo>? onGetAccountInfo, int baseCandleCount = 900, int initCandleCount = 1500)
-    {
-        public readonly string PublicKey = publicKey;
-        public readonly string SecretKey = secretKey;
-        public readonly int BaseCandleCount = baseCandleCount;
-        public readonly int InitCandleCount = initCandleCount;
-        public readonly Action<DataEvent<BinanceFuturesStreamAccountUpdate>>? OnAccountUpdate = onAccountUpdate;
-        public readonly Action<DataEvent<BinanceStreamEvent>>? OnListenKeyExpired = onListenKeyExpired;
-        public readonly Action<BinanceFuturesAccountInfo>? OnGetAccountInfo = onGetAccountInfo;
-    }
     public class StrategyManager
     {
         #region Singleton
@@ -44,34 +29,17 @@ namespace PMM.Core.CoreClass
         {
             if (conf.Exchange == Exchange.Binance)
             {
-                switch (conf.LibProvider)
+                SelfProvider adder = new()
                 {
-                    case LibProvider.JKorf:
-                        {
-                            JKorfProvider adder = new()
-                            {
-                                PublicKey = conf.PublicKey,
-                                SecretKey = conf.SecretKey
-                            };
-                            _providerList.Add(adder);
-                            return adder;
+                    PublicKey = conf.PublicKey,
+                    SecretKey = conf.SecretKey,
+                    OnAccountUpdate = conf.OnAccountUpdate,
+                    OnGetAccountInfo = conf.OnGetAccountInfo,
+                    OnListenKeyExpired = conf.OnListenKeyExpired,
+                };
+                _providerList.Add(adder);
 
-                        }
-
-                    case LibProvider.Self:
-                        {
-                            SelfProvider adder = new()
-                            {
-                                PublicKey = conf.PublicKey,
-                                SecretKey = conf.SecretKey
-                            };                            
-                            _providerList.Add(adder);
-
-                            return adder;
-                        }
-                    default:
-                        break;
-                }
+                return adder;
             }
             throw new NotImplementedException();
         }

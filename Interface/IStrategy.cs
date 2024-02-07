@@ -1,13 +1,6 @@
-﻿using Binance.Net.Enums;
-using Binance.Net.Interfaces;
-using Binance.Net.Objects.Models.Futures.Socket;
-using CryptoExchange.Net.Sockets;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PMM.Core.CoreClass;
-using PMM.Core.DataClass;
 using PMM.Core.EntityClass;
-using PMM.Core.Enum;
-using PMM.Core.Provider.DataClass;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Interface;
 
