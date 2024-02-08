@@ -1,5 +1,6 @@
 ﻿using PMM.Core.EntityClass;
 using PMM.Core.Enum;
+using PMM.Core.Provider.DataClass.Rest;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Enum;
 using PMM.Core.Provider.Interface;
@@ -12,6 +13,9 @@ namespace PMM.Core.Interface
         public abstract Symbol Symbol { get; }
         public abstract Interval Interval { get; }
         public abstract List<Action<OrderStreamRecv>> OrderCallbackList { get; }
+        public abstract Action<List<KlineData>> OnGetBaseCandle { get; }
+        public abstract Action<KlineStreamRawData> OnGetStreamData { get; }
+
         #endregion
         #region Util
         internal abstract bool Exists(Symbol symbol, Interval interval);
@@ -20,8 +24,6 @@ namespace PMM.Core.Interface
         public abstract IStreamCore AddStrategy<S>() where S : IStrategy, new();
         public abstract void PreStreamInit();
         public abstract void PostStreamInit();
-        public abstract Action<List<KlineStreamRawData>> OnGetBaseCandle();
-        public abstract Action<KlineStreamRawData> OnGetStreamData();
         public abstract void InitStreamWithoutAdditionalCandles();
         public abstract void InitStreamWithAdditionalCandles();
 

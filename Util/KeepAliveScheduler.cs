@@ -9,7 +9,7 @@ namespace PMM.Core.Utils
     {
         public async Task Execute(IJobExecutionContext context)
         {
-            bool success = await SelfProvider.KeepAlive();
+            bool success = await BinanceProvider.KeepAlive();
 
             if (success) Console.WriteLine("KeepAlive Success");
             else Console.WriteLine("KeepAlive Fail");

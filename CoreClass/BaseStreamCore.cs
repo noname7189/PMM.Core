@@ -2,6 +2,7 @@
 using PMM.Core.EntityClass;
 using PMM.Core.Enum;
 using PMM.Core.Interface;
+using PMM.Core.Provider.DataClass.Rest;
 using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.Enum;
 using PMM.Core.Provider.Interface;
@@ -92,7 +93,7 @@ namespace PMM.Core.CoreClass
             Candles.RemoveRange(0, Candles.Count - StrategyManager.Instance.BaseCandleCount);
         }
 
-        public sealed override Action<List<KlineStreamRawData>> OnGetBaseCandle() => (klines) =>
+        public sealed override Action<List<KlineData>> OnGetBaseCandle => (klines) =>
         {
             if (Candles.Count == 0) throw new ArgumentException("StreamCore has not been initialized!");
             //if (Candles.Count == 0) return;
@@ -103,15 +104,12 @@ namespace PMM.Core.CoreClass
 
             foreach (var kline in klines)
             {
-                // TODO : Deprecate
-                DateTime startTime = kline.GetType() == typeof(KlineStreamData) ? ((KlineStreamData)kline).StartTime.AddHours(9) : Util.GetDateTimeFromMilliSeconds(kline.StartTime);
-
                 if (found)
                 {
 
                     CandleAdders.Add(new C() 
                     { 
-                        Time = startTime,
+                        Time = kline.StartTime,
                         Open = kline.Open,
                         High = kline.High,
                         Low = kline.Low,
@@ -119,11 +117,11 @@ namespace PMM.Core.CoreClass
                         Volume = kline.Volume
                     });
 
-                    targetTime = Util.GetDateTimeFromMilliSeconds(kline.EndTime);
+                    targetTime = kline.StartTime.AddMinutes(5);
                 }
                 else
                 {
-                    if (targetTime == startTime) found = true;
+                    if (targetTime == kline.StartTime) found = true;
                 }
             }
 
@@ -195,30 +193,26 @@ namespace PMM.Core.CoreClass
         {
             Chain_ProcessWithDifferentCandle.Invoke(klines, prevCandle);
         }
-        public sealed override Action<KlineStreamRawData> OnGetStreamData() => (stream) =>
+        public sealed override Action<KlineStreamRawData> OnGetStreamData => (stream) =>
         {
-            KlineStreamRawData klines = stream;
             C? prevCandle = null;
-
-            // TODO : Deprecate
-            DateTime startTime = klines.GetType() == typeof(KlineStreamData) ? ((KlineStreamData)klines).StartTime.AddHours(9) : Util.GetDateTimeFromMilliSeconds(klines.StartTime);
 
             lock (LockObj)
             {
-                if (klines.Final == false)
+                if (stream.Final == false)
                 {
-                    ExecuteChain_ProcessWithSameCandle(klines);
+                    ExecuteChain_ProcessWithSameCandle(stream);
                 }
                 else
                 {
                     prevCandle = new()
                     {
-                        Time = startTime,
-                        Open = klines.Open,
-                        High = klines.High,
-                        Low = klines.Low,
-                        Close = klines.Close,
-                        Volume = klines.Volume
+                        Time = Util.GetDateTimeFromMilliSeconds(stream.StartTime),
+                        Open = stream.Open,
+                        High = stream.High,
+                        Low = stream.Low,
+                        Close = stream.Close,
+                        Volume = stream.Volume
                     };
 
                     Task.Run(() =>
@@ -230,7 +224,7 @@ namespace PMM.Core.CoreClass
                         // Manually clear candles[0]
                         Candles.RemoveAt(0);
 
-                        ExecuteChain_ProcessWithDifferentCandle(klines, prevCandle);
+                        ExecuteChain_ProcessWithDifferentCandle(stream, prevCandle);
                     });
                 }
             }

@@ -29,7 +29,7 @@ namespace PMM.Core.CoreClass
         {
             if (conf.Exchange == Exchange.Binance)
             {
-                SelfProvider adder = new()
+                BinanceProvider adder = new()
                 {
                     PublicKey = conf.PublicKey,
                     SecretKey = conf.SecretKey,

@@ -8,14 +8,13 @@ using PMM.Core.Provider.DataClass.Stream;
 using PMM.Core.Provider.DataClass.Stream.EventRecvData;
 using PMM.Core.Provider.Enum;
 using PMM.Core.Utils;
-using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using WebSocketSharp;
 
 namespace PMM.Core.Provider.Binance
 {
-    internal class SelfProvider : BaseProvider
+    internal class BinanceProvider : BaseProvider
     {
         private const string AccountEndpoint = @"/fapi/v2/account";
         private const string KlinesEndpoint = @"/fapi/v1/klines";
@@ -60,7 +59,8 @@ namespace PMM.Core.Provider.Binance
                 { "symbol", symbol.ToString() },
                 { "interval", JsonConvert.SerializeObject(interval, new IntervalConverter())},
             };
-            if (limit.HasValue) { parameters.Add("limit", limit.Value.ToString()); }
+
+            parameters.AddOptionalParameter("limit", limit?.ToString());
 
             string query = GetEntireQuery(parameters);
 

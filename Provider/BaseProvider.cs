@@ -106,7 +106,12 @@ namespace PMM.Core.Provider
                 core.PreStreamInit();
                 core.ExecuteChain_PreStrategyInit();
 
-                await GetKlinesAsync(core.Symbol, core.Interval, InitCandleCount);
+                Response<List<KlineData>> res = await GetKlinesAsync(core.Symbol, core.Interval, InitCandleCount);
+                if (res.Data != null)
+                {
+                    core.OnGetBaseCandle.Invoke(res.Data);
+                }
+                else throw new Exception("GetKlinesAsync Error");
 
                 if (core.AddedCandleExists())
                 {
@@ -145,7 +150,7 @@ namespace PMM.Core.Provider
 
             foreach (var core in _streamCoreList)
             {
-                await SubscribeToKlineUpdatesAsync(core.Symbol, core.Interval, core.OnGetStreamData());
+                await SubscribeToKlineUpdatesAsync(core.Symbol, core.Interval, core.OnGetStreamData);
             }
 
             DisposeContext();
