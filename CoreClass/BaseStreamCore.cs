@@ -151,6 +151,7 @@ namespace PMM.Core.CoreClass
             foreach (var strategy in _strategyList)
             {
                 strategy.SetStreamCore(this);
+                strategy.SetRestClientAdapter(adapter);
                 BindInitProcess(strategy);
                 BindOnlineProcess(strategy);
                 Action<OrderStreamRecv>? callback = strategy.ProcessOnOrderUpdate();

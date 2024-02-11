@@ -8,7 +8,7 @@ using PMM.Core.Provider.Interface;
 
 namespace PMM.Core.CoreClass
 {
-    public abstract class BaseStrategy<X, C, I, S> : IStrategy, IIndicatorRepository<X, I>, ISignalRepository<X, S>
+    public abstract class BaseStrategy<X, C, I, S> : IStrategy, IIndicatorRepository<X, I>, ISignalRepository<X, S>, ISignalGenerator<S>
         where X : DbContext, new()
         where C : BaseCandle, new()
         where I : BaseIndicator, new()
@@ -80,5 +80,12 @@ namespace PMM.Core.CoreClass
             }
             else signal.ExpectedProfit = null;
         }
+
+        public abstract List<S> GetOnlineSignals();
+        public abstract List<S> GenerateSignalsDuringSystemOff(int startIndex);
+        public abstract Task FinalizeFinishedSignals(List<S> finishedSignals);
+        public abstract List<S> TryTerminateResidualSignals();
+        public abstract S? AddOnlineSignal();
+        public abstract void InitializeGeneratedSignals(List<S> generatedSignals);
     }
 }

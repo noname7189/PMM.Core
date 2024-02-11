@@ -59,9 +59,8 @@ namespace PMM.Core.Provider
             {
                 if (core.Exists(adder.Symbol, adder.Interval)) throw new ArgumentException($"Stream core with symbol: {adder.Symbol}, interval: {adder.Interval} already exists");
             }
-
-            
-            _streamCoreList.Add(adder);
+                        
+            _streamCoreList.Add(adder);            
 
             return adder;
         }
